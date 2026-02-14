@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Todo Desktop Fixed Mode Widget</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .widget-text-shadow {
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+        }
+        body {
+            background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDPNkzdiWKQ4gOned9pSLkFuiAFBU3-Q70p5jKtg_Mpzupq-5MC2-HOa01lmKD5cpggXfmKu0QwYPwQ5hjdZ1Oh7hhtBa9O7--S4cpTMxlZdaqPv8NCdJkb58Xo09HmBKhykHWB9BGQ0-wt3hr4OMz5doO38t0ySF4qWu7MtveeiFP5lHeRIwpRmORjzNr46uTS2gQZXvVVpedUp9SsbO7yL-Q30ejP90tppX6ye6pJXWOqNo0kOKKFhgtROJ7jhJ4-2iC_xAwlwjqa);
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            height: 100vh;
+            width: 100vw;
+            margin: 0;
+            overflow: hidden
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display flex items-start justify-end p-12" data-alt="Scenic mountain landscape wallpaper">
+<main class="w-64 flex flex-col gap-1 relative">
+<header class="flex items-center justify-end gap-1 mb-2">
+<button aria-label="Expand Widget" class="group flex items-center justify-center w-6 h-6 rounded hover:bg-white/10 transition-colors duration-200">
+<span class="material-symbols-outlined text-white text-base opacity-70 group-hover:opacity-100">open_in_full</span>
+</button>
+<button aria-label="Lock Widget" class="group flex items-center justify-center w-6 h-6 rounded hover:bg-white/10 transition-colors duration-200">
+<span class="material-symbols-outlined text-white text-base opacity-70 group-hover:opacity-100">lock</span>
+</button>
+</header>
+<div class="flex flex-col">
+<div class="group flex items-center justify-between h-6 cursor-default hover:bg-white/5 px-2 rounded-sm transition-colors">
+<span class="text-white text-sm font-medium widget-text-shadow truncate pr-2">Submit quarterly report</span>
+<div class="flex-shrink-0 w-3 h-3 rounded-[2px] bg-blue-500 shadow-sm"></div>
+</div>
+<div class="group flex items-center justify-between h-6 cursor-default hover:bg-white/5 px-2 rounded-sm transition-colors">
+<span class="text-white text-sm font-medium widget-text-shadow truncate pr-2">Review Q4 Marketing Plan</span>
+<div class="flex-shrink-0 w-3 h-3 rounded-[2px] bg-red-500 shadow-sm"></div>
+</div>
+<div class="group flex items-center justify-between h-6 cursor-default hover:bg-white/5 px-2 rounded-sm transition-colors">
+<span class="text-white text-sm font-medium widget-text-shadow truncate pr-2">Email design team</span>
+<div class="flex-shrink-0 w-3 h-3 rounded-[2px] bg-orange-400 shadow-sm"></div>
+</div>
+<div class="group flex items-center justify-between h-6 cursor-default hover:bg-white/5 px-2 rounded-sm transition-colors">
+<span class="text-white text-sm font-medium widget-text-shadow truncate pr-2">Update software licenses</span>
+<div class="flex-shrink-0 w-3 h-3 rounded-[2px] bg-blue-500 shadow-sm"></div>
+</div>
+<div class="group flex items-center justify-between h-6 cursor-default hover:bg-white/5 px-2 rounded-sm transition-colors">
+<span class="text-white text-sm font-medium widget-text-shadow truncate pr-2">Client sync with Tom</span>
+<div class="flex-shrink-0 w-3 h-3 rounded-[2px] bg-orange-400 shadow-sm"></div>
+</div>
+<div class="group flex items-center justify-between h-6 cursor-default hover:bg-white/5 px-2 rounded-sm transition-colors">
+<span class="text-white text-sm font-medium widget-text-shadow truncate pr-2">Approve budget</span>
+<div class="flex-shrink-0 w-3 h-3 rounded-[2px] bg-blue-500 shadow-sm"></div>
+</div>
+</div>
+</main>
+
+</body></html>

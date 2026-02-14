@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Todo Desktop Expanded Window - Mobile Adaptation</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                        "neutral-hover": "#EEEEEE",
+                        "text-main": "#333333",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+        
+        /* Checkbox custom style */
+        .custom-checkbox:checked {
+            background-color: #135bec;
+            border-color: #135bec;
+            background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased h-screen w-full overflow-hidden flex flex-col md:flex-row">
+<!-- 
+      ADAPTATION NOTE:
+      The prompt requested a "Desktop Expanded Window" but specified "Platform: ios" and "Form factor: phone".
+      To reconcile this, I have created a responsive layout.
+      
+      MOBILE VIEW (< 768px):
+      - Navigation is a Bottom Tab Bar.
+      - Settings are in a slide-over or top bar action.
+      - Layout is optimized for touch.
+      
+      DESKTOP VIEW (>= 768px, simulating the 800x600 window request):
+      - 180px fixed sidebar on the left.
+      - Main content area on the right.
+      - Matches the "Expanded Mode" description exactly.
+    -->
+<!-- Sidebar (Desktop Mode - Hidden on Mobile) -->
+<aside class="hidden md:flex flex-col w-[180px] bg-white border-r border-gray-200 h-full flex-shrink-0">
+<!-- App Logo/Header -->
+<div class="p-6">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded bg-primary flex items-center justify-center text-white">
+<span class="material-icons text-sm">check</span>
+</div>
+<span class="font-bold text-text-main text-lg tracking-tight">TauriDo</span>
+</div>
+</div>
+<!-- Navigation Links -->
+<nav class="flex-1 px-3 space-y-1">
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-primary bg-primary/10 rounded-lg" href="#">
+<span class="material-icons text-[20px]">home</span>
+                Home
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500 hover:bg-neutral-hover hover:text-text-main rounded-lg transition-colors" href="#">
+<span class="material-icons text-[20px]">public</span>
+                Global
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500 hover:bg-neutral-hover hover:text-text-main rounded-lg transition-colors" href="#">
+<span class="material-icons text-[20px]">task</span>
+                Task
+            </a>
+<a class="flex items-center gap-3 px-3 py-2 text-sm font-medium text-gray-500 hover:bg-neutral-hover hover:text-text-main rounded-lg transition-colors" href="#">
+<span class="material-icons text-[20px]">bar_chart</span>
+                Stats
+            </a>
+</nav>
+<!-- Sidebar Footer / Settings -->
+<div class="p-4 border-t border-gray-100">
+<div class="mb-4">
+<label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2 block">Opacity</label>
+<input class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary" max="100" min="0" type="range" value="100"/>
+</div>
+<div class="mb-2">
+<label class="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2 block">Contrast</label>
+<input class="w-full h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-primary" max="100" min="0" type="range" value="80"/>
+</div>
+<button class="flex items-center gap-3 px-3 py-2 w-full text-sm font-medium text-gray-500 hover:bg-neutral-hover rounded-lg transition-colors mt-2">
+<span class="material-icons text-[20px]">settings</span>
+                Settings
+            </button>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col h-full bg-white relative">
+<!-- Header (Mobile & Desktop) -->
+<header class="flex-shrink-0 px-4 py-4 md:px-8 md:py-6 flex items-center justify-between border-b border-gray-100 md:border-none">
+<h1 class="text-2xl font-bold text-text-main">Home</h1>
+<!-- Mobile Settings Trigger -->
+<button class="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-full">
+<span class="material-icons">settings</span>
+</button>
+<!-- Desktop Profile/Add -->
+<div class="hidden md:flex items-center gap-4">
+<button class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors">
+<span class="material-icons text-sm">notifications</span>
+</button>
+<img alt="Profile" class="w-8 h-8 rounded-full border border-gray-200 object-cover" data-alt="User profile avatar image" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBVe7_I-JlUGlzfjL6drcbWXuXacanqwCEMezpiKOYTH6uHhjmxzOGBxZRJ7MDZYNq0ebRh7o8OirHuP-cfwyJSn0Me1tpPpQPUNITb1xXAYdvVqQc5U5zWERlQIXI1lXAtZHOQKLREluqnL3SxO7xhhZJQBYfE_FypeKeYbN3DoMq_0Z35TOSgxjOQnp_QSFBVgVh1sqhhPTJ8YFumVsOVNpsXZep0u9eLTou8v3bQ-jAoVjx0f-pX41gH0PXIJ-ZSE7T7b7nZMCNx"/>
+</div>
+</header>
+<!-- Filters Section -->
+<div class="flex-shrink-0 px-4 pb-4 md:px-8 md:pb-6">
+<div class="inline-flex p-1 bg-background-light rounded-lg">
+<button class="px-4 py-1.5 text-sm font-medium rounded-md bg-white text-primary shadow-sm ring-1 ring-black/5 transition-all">All</button>
+<button class="px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-text-main hover:bg-white/50 transition-colors">Active</button>
+<button class="px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-text-main hover:bg-white/50 transition-colors">Completed</button>
+</div>
+</div>
+<!-- Task List Scroll Area -->
+<div class="flex-1 overflow-y-auto px-4 md:px-8 pb-24 md:pb-8">
+<!-- New Task Input (Desktop style, at top) -->
+<div class="mb-6 flex items-center gap-3 p-3 bg-background-light/50 rounded-lg border border-transparent focus-within:border-primary/30 focus-within:bg-white transition-all group">
+<span class="material-icons text-gray-400 group-focus-within:text-primary transition-colors">add</span>
+<input class="bg-transparent border-none focus:ring-0 w-full text-text-main placeholder-gray-400 text-sm h-full outline-none" placeholder="Add a new task..." type="text"/>
+<span class="text-xs text-gray-400 font-medium px-2 py-1 bg-white rounded border border-gray-200 hidden md:inline-block">Enter</span>
+</div>
+<!-- List of Tasks -->
+<div class="space-y-1">
+<!-- Task Item 1 -->
+<div class="group flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-hover transition-colors cursor-pointer border border-transparent hover:border-gray-200">
+<input class="custom-checkbox w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/20 transition-all cursor-pointer" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-text-main truncate">Update Tauri configuration for v2.0</p>
+<p class="text-xs text-gray-400 mt-0.5 truncate">Rust • High Priority</p>
+</div>
+<span class="text-xs text-gray-400 group-hover:text-primary transition-colors">Today</span>
+</div>
+<!-- Task Item 2 -->
+<div class="group flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-hover transition-colors cursor-pointer border border-transparent hover:border-gray-200">
+<input class="custom-checkbox w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/20 transition-all cursor-pointer" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-text-main truncate">Design review with engineering team</p>
+<p class="text-xs text-gray-400 mt-0.5 truncate">Meeting • 2:00 PM</p>
+</div>
+<div class="flex -space-x-2 mr-2">
+<img alt="" class="w-6 h-6 rounded-full border-2 border-white" data-alt="Team member avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQhHEyHL1w8p2EvPkqiBsoDBbrxB4eEggsNzaKFTBX-OA1VLPWXCXVHFqK8esJOBpKFC34XM8nScUDBASQnwfKoJryPzr5pv3RMB5waVURjKS960jtgj-gwPTHXp3YLrXRyYCFJX3omh7atTNz2Vxrb2wWn8On4_VPTzx53ymkZY-iLukqDTFsBzDQMtuVssJ8GC-3gmykOdiPZ7YzaUkfikNZFPZjQkeyL38ONSiebtk_0O_7lUMR5x8WJovJ_dNBcMX4SGtMbQNS"/>
+<img alt="" class="w-6 h-6 rounded-full border-2 border-white" data-alt="Team member avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA4BupiJmlDcuBcJBfi_Py4zybX7NWrbhcNdGzGaGhrK4n18Wvb9_JICF6DT429Fd9obhNr716f8VrIWxFJmyw1ERw_R85IBwEk7Ph8zV0z9e8TkRuDpCU0JKX0v6rvCZ1F1eiMkzKgzST3IBmtKk0QgE_ADWZHRx2hYKjvk13xO2OMpekkAaXg4vzpzJ5K7m_gLm3gD9ydL-VTQcXAyiuFivCK9cOOC8rnxwc0HmRZKw5uAssMTLGWNTd1eOzoqYYjhrS0c539jQ4c"/>
+</div>
+</div>
+<!-- Task Item 3 (Completed) -->
+<div class="group flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-hover transition-colors cursor-pointer border border-transparent hover:border-gray-200 opacity-60">
+<input checked="" class="custom-checkbox w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/20 transition-all cursor-pointer" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-text-main line-through truncate">Reply to client emails</p>
+</div>
+<span class="material-icons text-green-500 text-[18px]">check_circle</span>
+</div>
+<!-- Task Item 4 -->
+<div class="group flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-hover transition-colors cursor-pointer border border-transparent hover:border-gray-200">
+<input class="custom-checkbox w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/20 transition-all cursor-pointer" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-text-main truncate">Refactor sidebar navigation component</p>
+<p class="text-xs text-gray-400 mt-0.5 truncate">Frontend</p>
+</div>
+</div>
+<!-- Task Item 5 -->
+<div class="group flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-hover transition-colors cursor-pointer border border-transparent hover:border-gray-200">
+<input class="custom-checkbox w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/20 transition-all cursor-pointer" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-text-main truncate">Write documentation for expanded mode</p>
+</div>
+<span class="text-xs text-gray-400 group-hover:text-primary transition-colors">Tomorrow</span>
+</div>
+<!-- Task Item 6 -->
+<div class="group flex items-center gap-3 p-3 rounded-lg hover:bg-neutral-hover transition-colors cursor-pointer border border-transparent hover:border-gray-200">
+<input class="custom-checkbox w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary/20 transition-all cursor-pointer" type="checkbox"/>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-text-main truncate">Fix responsive layout bugs on iOS</p>
+<p class="text-xs text-red-500 mt-0.5 truncate flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> Urgent
+                        </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Mobile Floating Action Button (FAB) -->
+<button class="md:hidden absolute bottom-24 right-4 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center hover:bg-blue-600 transition-colors z-20">
+<span class="material-icons text-2xl">add</span>
+</button>
+</main>
+<!-- Mobile Bottom Navigation (Hidden on Desktop) -->
+<nav class="md:hidden bg-white border-t border-gray-200 flex justify-around items-center h-20 pb-4 px-2 w-full fixed bottom-0 left-0 z-30">
+<a class="flex flex-col items-center justify-center w-full h-full text-primary" href="#">
+<span class="material-icons mb-1">home</span>
+<span class="text-[10px] font-medium">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-text-main transition-colors" href="#">
+<span class="material-icons mb-1">public</span>
+<span class="text-[10px] font-medium">Global</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-text-main transition-colors" href="#">
+<div class="relative">
+<span class="material-icons mb-1">task</span>
+<span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+</div>
+<span class="text-[10px] font-medium">Task</span>
+</a>
+<a class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-text-main transition-colors" href="#">
+<span class="material-icons mb-1">bar_chart</span>
+<span class="text-[10px] font-medium">Stats</span>
+</a>
+</nav>
+</body></html>
