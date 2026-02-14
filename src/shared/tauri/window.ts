@@ -1,7 +1,21 @@
 import { invoke } from "@tauri-apps/api/core";
+import { emit, listen } from "@tauri-apps/api/event";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getWidgetLocked, getWidgetPosition } from "../settings/widget";
-import type { AppMode } from "../types/todo";
+import type {
+  AppMode,
+  TaskStatusSyncPayload,
+  TasksStateSyncPayload,
+  WidgetAlignmentSyncPayload,
+  WidgetTaskViewSyncPayload,
+} from "../types/todo";
+
+const taskStatusUpdatedEvent = "task-status-updated";
+const tasksStateUpdatedEvent = "tasks-state-updated";
+const widgetSetLockStateEvent = "widget-set-lock-state";
+const widgetSetVisibilityStateEvent = "widget-set-visibility-state";
+const widgetTaskViewUpdatedEvent = "widget-task-view-updated";
+const widgetAlignmentUpdatedEvent = "widget-alignment-updated";
 
 declare global {
   interface Window {
@@ -100,6 +114,24 @@ export async function ensureWidgetWindow() {
   });
 }
 
+export async function setWidgetWindowVisibility(visible: boolean) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  if (visible) {
+    await ensureWidgetWindow();
+    return;
+  }
+
+  const existing = await WebviewWindow.getByLabel("widget");
+  if (!existing) {
+    return;
+  }
+
+  await existing.hide();
+}
+
 export async function focusMainWindow() {
   if (!isTauriRuntime()) {
     return;
@@ -182,12 +214,33 @@ export async function onWidgetSetLock(handler: (locked: boolean) => void) {
   });
 }
 
+export async function onWidgetSetVisibility(handler: (visible: boolean) => void) {
+  if (!isTauriRuntime()) {
+    return () => {};
+  }
+
+  const current = getCurrentWebviewWindow();
+  return current.listen<boolean>(widgetSetVisibilityStateEvent, (event) => {
+    if (typeof event.payload === "boolean") {
+      handler(event.payload);
+    }
+  });
+}
+
 export async function syncWidgetLockedState(locked: boolean) {
   if (!isTauriRuntime()) {
     return;
   }
 
   await invoke("sync_widget_locked_state", { locked });
+}
+
+export async function syncWidgetVisibilityState(visible: boolean) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await invoke("sync_widget_visibility_state", { visible });
 }
 
 export async function onWidgetMoved(handler: (position: { x: number; y: number }) => void) {
@@ -202,5 +255,97 @@ export async function onWidgetMoved(handler: (position: { x: number; y: number }
 
   return current.onMoved(({ payload }) => {
     handler({ x: payload.x, y: payload.y });
+  });
+}
+
+export function getCurrentWindowLabelSafe() {
+  if (!isTauriRuntime()) {
+    return null;
+  }
+
+  try {
+    return getCurrentWebviewWindow().label;
+  } catch {
+    return null;
+  }
+}
+
+export async function emitTaskStatusUpdated(payload: TaskStatusSyncPayload) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await emit<TaskStatusSyncPayload>(taskStatusUpdatedEvent, payload);
+}
+
+export async function onTaskStatusUpdated(handler: (payload: TaskStatusSyncPayload) => void) {
+  if (!isTauriRuntime()) {
+    return () => {};
+  }
+
+  return listen<TaskStatusSyncPayload>(taskStatusUpdatedEvent, (event) => {
+    handler(event.payload);
+  });
+}
+
+export async function emitTasksStateUpdated(payload: TasksStateSyncPayload) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await emit<TasksStateSyncPayload>(tasksStateUpdatedEvent, payload);
+}
+
+export async function onTasksStateUpdated(handler: (payload: TasksStateSyncPayload) => void) {
+  if (!isTauriRuntime()) {
+    return () => {};
+  }
+
+  return listen<TasksStateSyncPayload>(tasksStateUpdatedEvent, (event) => {
+    handler(event.payload);
+  });
+}
+
+export async function emitWidgetSetLock(locked: boolean) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await emit<boolean>(widgetSetLockStateEvent, locked);
+}
+
+export async function emitWidgetTaskViewUpdated(payload: WidgetTaskViewSyncPayload) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await emit<WidgetTaskViewSyncPayload>(widgetTaskViewUpdatedEvent, payload);
+}
+
+export async function onWidgetTaskViewUpdated(handler: (payload: WidgetTaskViewSyncPayload) => void) {
+  if (!isTauriRuntime()) {
+    return () => {};
+  }
+
+  return listen<WidgetTaskViewSyncPayload>(widgetTaskViewUpdatedEvent, (event) => {
+    handler(event.payload);
+  });
+}
+
+export async function emitWidgetAlignmentUpdated(payload: WidgetAlignmentSyncPayload) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await emit<WidgetAlignmentSyncPayload>(widgetAlignmentUpdatedEvent, payload);
+}
+
+export async function onWidgetAlignmentUpdated(handler: (payload: WidgetAlignmentSyncPayload) => void) {
+  if (!isTauriRuntime()) {
+    return () => {};
+  }
+
+  return listen<WidgetAlignmentSyncPayload>(widgetAlignmentUpdatedEvent, (event) => {
+    handler(event.payload);
   });
 }

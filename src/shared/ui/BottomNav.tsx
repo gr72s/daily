@@ -1,17 +1,25 @@
-const navItems = [
-  { id: "home", label: "Home", icon: "⌂", active: true },
+import type { StandardSection } from "../types/todo";
+
+const navItems: Array<{ id: StandardSection; label: string; icon: string; badge?: boolean }> = [
+  { id: "home", label: "Home", icon: "⌂" },
   { id: "global", label: "Global", icon: "◉" },
   { id: "task", label: "Task", icon: "☑", badge: true },
   { id: "stats", label: "Stats", icon: "▥" },
 ];
 
-export function BottomNav() {
+interface BottomNavProps {
+  active: StandardSection;
+  onChange: (section: StandardSection) => void;
+}
+
+export function BottomNav({ active, onChange }: BottomNavProps) {
   return (
     <nav className="bottom-nav" aria-label="Main navigation">
       {navItems.map((item) => (
         <button
           key={item.id}
-          className={`bottom-nav-item${item.active ? " is-active" : ""}`}
+          className={`bottom-nav-item${active === item.id ? " is-active" : ""}`}
+          onClick={() => onChange(item.id)}
           type="button"
           aria-label={item.label}
         >

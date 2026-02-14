@@ -1,18 +1,28 @@
 import { widgetColorClass } from "../../shared/theme/tokens";
-import type { TodoTask } from "../../shared/types/todo";
+import type { TodoTask, WidgetAlignMode } from "../../shared/types/todo";
 
 interface WidgetTaskRowProps {
   task: TodoTask;
+  onToggle: (id: string) => void;
+  alignMode: WidgetAlignMode;
 }
 
-export function WidgetTaskRow({ task }: WidgetTaskRowProps) {
+export function WidgetTaskRow({ task, onToggle, alignMode }: WidgetTaskRowProps) {
+  const isCompleted = task.status === "completed";
+  const isLeftAlign = alignMode === "left";
+
   return (
-    <article className="widget-task-row">
+    <button
+      className={`widget-task-row${isCompleted ? " is-completed" : ""}${isLeftAlign ? " is-left" : " is-right"}`}
+      onClick={() => onToggle(task.id)}
+      type="button"
+    >
+      {isLeftAlign ? <span className={`widget-dot ${widgetColorClass[task.widgetColor]}`} aria-hidden="true" /> : null}
       <p className="widget-task-title" title={task.title}>
         {task.hasException ? <span className="widget-task-exception">!</span> : null}
         {task.title}
       </p>
-      <span className={`widget-dot ${widgetColorClass[task.widgetColor]}`} aria-hidden="true" />
-    </article>
+      {isLeftAlign ? null : <span className={`widget-dot ${widgetColorClass[task.widgetColor]}`} aria-hidden="true" />}
+    </button>
   );
 }
