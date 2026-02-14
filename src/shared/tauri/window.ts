@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getWidgetLocked, getWidgetPosition } from "../settings/widget";
 import type { AppMode } from "../types/todo";
@@ -166,6 +167,27 @@ export async function onWidgetToggleLock(handler: () => void) {
   return current.listen("widget-toggle-lock-shortcut", () => {
     handler();
   });
+}
+
+export async function onWidgetSetLock(handler: (locked: boolean) => void) {
+  if (!isTauriRuntime()) {
+    return () => {};
+  }
+
+  const current = getCurrentWebviewWindow();
+  return current.listen<boolean>("widget-set-lock-state", (event) => {
+    if (typeof event.payload === "boolean") {
+      handler(event.payload);
+    }
+  });
+}
+
+export async function syncWidgetLockedState(locked: boolean) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  await invoke("sync_widget_locked_state", { locked });
 }
 
 export async function onWidgetMoved(handler: (position: { x: number; y: number }) => void) {

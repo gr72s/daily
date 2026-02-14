@@ -5,7 +5,8 @@ import {
   focusMainWindow,
   onWidgetForceUnlock,
   onWidgetMoved,
-  onWidgetToggleLock,
+  onWidgetSetLock,
+  syncWidgetLockedState,
   startWidgetDragging,
 } from "../../shared/tauri/window";
 import { getWidgetTasks, useTodoStore } from "../../shared/state/useTodoStore";
@@ -32,6 +33,7 @@ export function WidgetModePage() {
 
   useEffect(() => {
     void applyWidgetLockState(widgetLocked);
+    void syncWidgetLockedState(widgetLocked);
   }, [widgetLocked]);
 
   useEffect(() => {
@@ -39,40 +41,54 @@ export function WidgetModePage() {
       setWidgetOpacity(nextOpacity);
     });
 
+    let isDisposed = false;
     let unlistenForceUnlock: (() => void) | undefined;
-    let unlistenToggleShortcut: (() => void) | undefined;
+    let unlistenSetLock: (() => void) | undefined;
     let unlistenMoved: (() => void) | undefined;
     void onWidgetForceUnlock(() => {
       setWidgetLocked(false);
     }).then((dispose) => {
+      if (isDisposed) {
+        dispose();
+        return;
+      }
       unlistenForceUnlock = dispose;
     });
 
-    void onWidgetToggleLock(() => {
-      toggleWidgetLocked();
+    void onWidgetSetLock((locked) => {
+      setWidgetLocked(locked);
     }).then((dispose) => {
-      unlistenToggleShortcut = dispose;
+      if (isDisposed) {
+        dispose();
+        return;
+      }
+      unlistenSetLock = dispose;
     });
 
     void onWidgetMoved((position) => {
       setWidgetPosition(position);
     }).then((dispose) => {
+      if (isDisposed) {
+        dispose();
+        return;
+      }
       unlistenMoved = dispose;
     });
 
     return () => {
+      isDisposed = true;
       stopWatchOpacity();
       if (unlistenForceUnlock) {
         unlistenForceUnlock();
       }
-      if (unlistenToggleShortcut) {
-        unlistenToggleShortcut();
+      if (unlistenSetLock) {
+        unlistenSetLock();
       }
       if (unlistenMoved) {
         unlistenMoved();
       }
     };
-  }, [setWidgetLocked, toggleWidgetLocked]);
+  }, [setWidgetLocked]);
 
   return (
     <div className="widget-page">

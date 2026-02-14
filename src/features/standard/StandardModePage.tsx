@@ -1,7 +1,7 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getWidgetOpacity, setWidgetOpacity as persistWidgetOpacity } from "../../shared/settings/widget";
 import { getVisibleTasks, useTodoStore } from "../../shared/state/useTodoStore";
-import { ensureWidgetWindow } from "../../shared/tauri/window";
+import { ensureWidgetWindow, onWidgetSetLock, syncWidgetLockedState } from "../../shared/tauri/window";
 import { BottomNav } from "../../shared/ui/BottomNav";
 import { FilterTabs } from "../../shared/ui/FilterTabs";
 import { TaskRow } from "../../shared/ui/TaskRow";
@@ -24,6 +24,8 @@ export function StandardModePage() {
   const setSortMode = useTodoStore((state) => state.setSortMode);
   const toggleTask = useTodoStore((state) => state.toggleTask);
   const addTask = useTodoStore((state) => state.addTask);
+  const widgetLocked = useTodoStore((state) => state.widgetLocked);
+  const setWidgetLocked = useTodoStore((state) => state.setWidgetLocked);
 
   const tasks = useTodoStore((state) => state.tasks);
   const visibleTasks = useMemo(() => getVisibleTasks(tasks, filter, sortMode), [tasks, filter, sortMode]);
@@ -42,6 +44,31 @@ export function StandardModePage() {
       setWindowError(error instanceof Error ? error.message : "Unable to open widget window.");
     }
   };
+
+  useEffect(() => {
+    let isDisposed = false;
+    let unlisten: (() => void) | undefined;
+    void onWidgetSetLock((locked) => {
+      setWidgetLocked(locked);
+    }).then((dispose) => {
+      if (isDisposed) {
+        dispose();
+        return;
+      }
+      unlisten = dispose;
+    });
+
+    return () => {
+      isDisposed = true;
+      if (unlisten) {
+        unlisten();
+      }
+    };
+  }, [setWidgetLocked]);
+
+  useEffect(() => {
+    void syncWidgetLockedState(widgetLocked);
+  }, [widgetLocked]);
 
   const onWidgetOpacityChange = (value: number) => {
     setWidgetOpacity(value);

@@ -43,3 +43,11 @@ Permissions associated with this command: core:webview:allow-create-webview-wind
 
 该问题本质是 **ACL 权限缺失**，不是前端页面样式或 React 状态导致。  
 当使用 `WebviewWindow` 动态创建窗口时，必须同步在 capability 中显式放行对应权限。
+
+## 已知限制（当前暂不处理）
+
+- 在 Windows 开发环境（`tauri dev`）下，从托盘执行“退出应用”时，偶现以下日志：
+  - `Failed to unregister class Chrome_WidgetWin_0. Error = 1412`
+  - `ELIFECYCLE Command failed with exit code 4294967295`
+- 该问题目前只影响开发态退出体验，不影响核心功能（托盘操作、Widget 锁定/解锁、窗口交互与持久化）。
+- 当前阶段按“已知噪音”处理，后续如需彻底消除，再单独做退出流程专项优化。
