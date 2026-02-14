@@ -18,10 +18,7 @@
 
 - task：任务。包含id、version、状态、日志、创建时间、更新时间、关闭时间。
   - delay task：延期任务，它不能直接作为global的子项。task包含0-n个delay task。
-  - 每个task在每天早上6点检查状态，如果状态为未完成，自动创建dalay task，默认内容为“[delay] 关联task的内容”
-  - 每天 6 点检查时，如果已有未完成的 delay task，则更新该 Delay 的计数
   - 状态更新：Task 允许手动标记完成；其关联的所有 Delay 任务均标记完成时进行“询问确认”。自身标记完成后，所有Delay任务均标记完成。
-  - 启动时对比 CurrentTime 和 lastAutoCheckTime。如果跨越了多个“早上 6 点”，系统应能识别出该任务实际延期了多少天，并一次性更新 delay count，而不是只增加 1
   - 任务被标记完成后，自动更新关闭时间
 - log：日志。用于记录task的过程，每个日志都可以关联一个task。日志共有exception、simple、spark、conclusion四种类型。每条日志都有独立的id、version、类型、内容、关联的taskid、创建时间、更新时间。
   - exception：异常事项，需要关联具体的 Task。
@@ -65,8 +62,6 @@
 - 异常处理与鲁棒性
   - JSON 损坏恢复：如果 data.json 解析失败（如断电导致文件写入一半），系统应自动尝试从最新的 SQLite 备份中提取数据并回滚。
   - 版本兼容性：在 LocalStorageRoot 中增加一个 schemaVersion。当未来修改数据结构时，可以编写迁移脚本（Migration）升级老数据。
-- 时间戳的精度
-  - 由于delay task 是每天 6 点自动创建的，请务必在 data.json 中记录 lastAutoCheckTime。否则，如果用户在 6 点前后反复重启软件，可能会触发多次自动创建逻辑。
 - 任务状态更新
   - 允许自定义状态更新策略：启动时检查、手动触发、定时检查
 
