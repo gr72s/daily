@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { getWidgetOpacity, setWidgetOpacity as persistWidgetOpacity } from "../../shared/settings/widget";
 import { getVisibleTasks, useTodoStore } from "../../shared/state/useTodoStore";
 import { ensureWidgetWindow } from "../../shared/tauri/window";
 import { BottomNav } from "../../shared/ui/BottomNav";
@@ -15,6 +16,7 @@ const sidebarItems = [
 export function StandardModePage() {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [windowError, setWindowError] = useState<string | null>(null);
+  const [widgetOpacity, setWidgetOpacity] = useState(() => getWidgetOpacity());
 
   const filter = useTodoStore((state) => state.filter);
   const sortMode = useTodoStore((state) => state.sortMode);
@@ -41,6 +43,11 @@ export function StandardModePage() {
     }
   };
 
+  const onWidgetOpacityChange = (value: number) => {
+    setWidgetOpacity(value);
+    persistWidgetOpacity(value);
+  };
+
   return (
     <div className="standard-shell">
       <aside className="standard-sidebar" aria-label="Sidebar navigation">
@@ -62,7 +69,15 @@ export function StandardModePage() {
           <label className="sidebar-opacity-label" htmlFor="sidebar-opacity-slider">
             Opacity
           </label>
-          <input id="sidebar-opacity-slider" className="sidebar-opacity-slider" type="range" min={0} max={100} defaultValue={100} />
+          <input
+            id="sidebar-opacity-slider"
+            className="sidebar-opacity-slider"
+            type="range"
+            min={0}
+            max={100}
+            value={widgetOpacity}
+            onChange={(event) => onWidgetOpacityChange(Number(event.currentTarget.value))}
+          />
           <button className="sidebar-widget-button" onClick={onOpenWidget} type="button">
             Open Widget
           </button>

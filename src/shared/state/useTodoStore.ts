@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getWidgetLocked, setWidgetLocked as persistWidgetLocked } from "../settings/widget";
 import { priorityOrder } from "../theme/tokens";
 import type { SortMode, TaskFilter, TodoTask } from "../types/todo";
 
@@ -12,6 +13,7 @@ interface TodoState {
   setFilter: (filter: TaskFilter) => void;
   setSortMode: (sortMode: SortMode) => void;
   setWidgetLocked: (locked: boolean) => void;
+  toggleWidgetLocked: () => void;
 }
 
 const initialTasks: TodoTask[] = [
@@ -125,7 +127,7 @@ export const useTodoStore = create<TodoState>((set) => ({
   tasks: initialTasks,
   filter: "all",
   sortMode: "status",
-  widgetLocked: true,
+  widgetLocked: getWidgetLocked(),
   toggleTask: (id) => {
     set((state) => ({
       tasks: state.tasks.map((task) => {
@@ -164,5 +166,14 @@ export const useTodoStore = create<TodoState>((set) => ({
   },
   setFilter: (filter) => set({ filter }),
   setSortMode: (sortMode) => set({ sortMode }),
-  setWidgetLocked: (widgetLocked) => set({ widgetLocked }),
+  setWidgetLocked: (widgetLocked) => {
+    persistWidgetLocked(widgetLocked);
+    set({ widgetLocked });
+  },
+  toggleWidgetLocked: () =>
+    set((state) => {
+      const nextLocked = !state.widgetLocked;
+      persistWidgetLocked(nextLocked);
+      return { widgetLocked: nextLocked };
+    }),
 }));
