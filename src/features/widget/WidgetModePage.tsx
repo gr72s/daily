@@ -1,19 +1,28 @@
-import { useEffect, useMemo, useState } from "react";
-import { getWidgetOpacity, setWidgetPosition, watchWidgetOpacity } from "../../shared/settings/widget";
+﻿import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import {
+  getWidgetHoverOpacity,
+  getWidgetOpacity,
+  getWidgetScale,
+  setWidgetPosition,
+  watchWidgetHoverOpacity,
+  watchWidgetOpacity,
+  watchWidgetScale,
+} from "../../shared/settings/widget";
 import {
   applyWidgetLockState,
+  applyWidgetScaleWindowSize,
   emitWidgetSetLock,
   focusMainWindow,
   getCurrentWindowLabelSafe,
-  onWidgetAlignmentUpdated,
   onTaskStatusUpdated,
   onTasksStateUpdated,
-  onWidgetTaskViewUpdated,
+  onWidgetAlignmentUpdated,
   onWidgetForceUnlock,
   onWidgetMoved,
   onWidgetSetLock,
-  syncWidgetLockedState,
+  onWidgetTaskViewUpdated,
   startWidgetDragging,
+  syncWidgetLockedState,
 } from "../../shared/tauri/window";
 import { getWidgetTasks, useTodoStore } from "../../shared/state/useTodoStore";
 import { WidgetTaskRow } from "./WidgetTaskRow";
@@ -32,8 +41,15 @@ export function WidgetModePage() {
   const applySyncedWidgetAlignment = useTodoStore((state) => state.applySyncedWidgetAlignment);
   const tasks = useTodoStore((state) => state.tasks);
   const sortMode = useTodoStore((state) => state.sortMode);
+
   const [widgetOpacity, setWidgetOpacity] = useState(() => getWidgetOpacity());
+  const [widgetHoverOpacity, setWidgetHoverOpacity] = useState(() => getWidgetHoverOpacity());
+  const [widgetScale, setWidgetScale] = useState(() => getWidgetScale());
+  const [widgetHovered, setWidgetHovered] = useState(false);
+
   const visibleTasks = useMemo(() => getWidgetTasks(tasks, sortMode, widgetShowAllTasks), [tasks, sortMode, widgetShowAllTasks]);
+  const activeBackgroundOpacity = !widgetLocked && widgetHovered ? widgetHoverOpacity : widgetOpacity;
+  const activeScale = widgetScale / 100;
 
   const onToggleWidgetLock = () => {
     const nextLocked = !widgetLocked;
@@ -70,8 +86,18 @@ export function WidgetModePage() {
   }, [widgetLocked]);
 
   useEffect(() => {
+    void applyWidgetScaleWindowSize(widgetScale);
+  }, [widgetScale]);
+
+  useEffect(() => {
     const stopWatchOpacity = watchWidgetOpacity((nextOpacity) => {
       setWidgetOpacity(nextOpacity);
+    });
+    const stopWatchHoverOpacity = watchWidgetHoverOpacity((nextOpacity) => {
+      setWidgetHoverOpacity(nextOpacity);
+    });
+    const stopWatchScale = watchWidgetScale((nextScale) => {
+      setWidgetScale(nextScale);
     });
 
     const currentLabel = getCurrentWindowLabelSafe();
@@ -83,6 +109,7 @@ export function WidgetModePage() {
     let unlistenTasksState: (() => void) | undefined;
     let unlistenWidgetTaskView: (() => void) | undefined;
     let unlistenWidgetAlignment: (() => void) | undefined;
+
     void onWidgetForceUnlock(() => {
       setWidgetLocked(false);
     }).then((dispose) => {
@@ -168,6 +195,8 @@ export function WidgetModePage() {
     return () => {
       isDisposed = true;
       stopWatchOpacity();
+      stopWatchHoverOpacity();
+      stopWatchScale();
       if (unlistenForceUnlock) {
         unlistenForceUnlock();
       }
@@ -194,7 +223,12 @@ export function WidgetModePage() {
 
   return (
     <div className="widget-page">
-      <main className={`widget-panel${widgetLocked ? " is-locked" : ""}`} style={{ opacity: widgetOpacity / 100 }}>
+      <main
+        className={`widget-panel${widgetLocked ? " is-locked" : ""}${widgetHovered && !widgetLocked ? " is-hovered" : ""}`}
+        style={{ "--widget-bg-opacity": `${activeBackgroundOpacity / 100}`, "--widget-scale": `${activeScale}` } as CSSProperties}
+        onMouseEnter={() => setWidgetHovered(true)}
+        onMouseLeave={() => setWidgetHovered(false)}
+      >
         <header className="widget-toolbar">
           <div
             className={`widget-drag-region${widgetLocked ? " is-disabled" : ""}`}
@@ -207,7 +241,7 @@ export function WidgetModePage() {
             aria-hidden="true"
           />
           <button className="widget-icon-button" onClick={() => void focusMainWindow()} type="button" aria-label="Expand widget">
-            ⤢
+            ↗
           </button>
           <button
             className={`widget-icon-button widget-view-button${widgetShowAllTasks ? " is-all" : ""}`}
@@ -234,7 +268,7 @@ export function WidgetModePage() {
             aria-label={widgetLocked ? "Unlock widget" : "Lock widget"}
           >
             <span className="widget-lock-icon" aria-hidden="true">
-              {widgetLocked ? "🔐" : "✎"}
+              {widgetLocked ? "🔒" : "✎"}
             </span>
             <span>{widgetLocked ? "Locked" : "Unlocked"}</span>
           </button>

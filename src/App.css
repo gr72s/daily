@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #1f2937;
   background: #f6f6f8;
@@ -143,6 +143,14 @@ button {
   font-size: 13px;
   font-weight: 600;
 }
+.sidebar-scale-reset-button {
+  border-radius: 8px;
+  height: 30px;
+  background: #eef2f7;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+}
 
 .standard-page {
   min-width: 0;
@@ -171,44 +179,31 @@ button {
   gap: 8px;
 }
 
-.widget-lock-toggle {
-  height: 32px;
-  border-radius: 8px;
-  padding: 0 10px;
-  background: #eceef2;
-  color: #4b5563;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.widget-view-toggle {
-  height: 32px;
-  border-radius: 8px;
-  padding: 0 10px;
-  background: #dbeafe;
-  color: #1d4ed8;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.widget-visibility-toggle {
-  height: 32px;
-  border-radius: 8px;
-  padding: 0 10px;
-  background: #dcfce7;
-  color: #166534;
-  font-size: 12px;
-  font-weight: 700;
-}
-
+.widget-lock-toggle,
+.widget-view-toggle,
+.widget-visibility-toggle,
 .widget-align-toggle {
   height: 32px;
   border-radius: 8px;
   padding: 0 10px;
-  background: #ede9fe;
-  color: #6d28d9;
   font-size: 12px;
   font-weight: 700;
+}
+
+.widget-lock-toggle.is-open,
+.widget-view-toggle.is-open,
+.widget-visibility-toggle.is-open,
+.widget-align-toggle.is-open {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.widget-lock-toggle.is-closed,
+.widget-view-toggle.is-closed,
+.widget-visibility-toggle.is-closed,
+.widget-align-toggle.is-closed {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .standard-title {
@@ -1161,10 +1156,37 @@ button {
 }
 
 .widget-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 10px;
+  --widget-bg-opacity: 0.2;
+  --widget-scale: 1;
   width: 280px;
   color: #f8fafc;
   padding: 4px 4px 6px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.92);
+  transform: scale(var(--widget-scale));
+  transform-origin: top right;
+  transition: filter 0.16s ease, transform 0.16s ease;
+}
+
+.widget-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(8, 16, 28, var(--widget-bg-opacity));
+  transition: background-color 0.16s ease;
+  pointer-events: none;
+}
+
+.widget-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.widget-panel.is-hovered {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.24));
 }
 
 .widget-toolbar {
@@ -1343,16 +1365,12 @@ button {
   flex-shrink: 0;
 }
 
-.widget-dot-blue {
-  background: #3b82f6;
+.widget-dot.is-active {
+  background: #fca5a5;
 }
 
-.widget-dot-orange {
-  background: #fb923c;
-}
-
-.widget-dot-red {
-  background: #ef4444;
+.widget-dot.is-completed {
+  background: #86efac;
 }
 
 @media (max-width: 768px) {
@@ -1413,3 +1431,7 @@ button {
     grid-template-columns: repeat(4, 1fr);
   }
 }
+
+
+
+

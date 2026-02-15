@@ -1,5 +1,12 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import { getWidgetOpacity, setWidgetOpacity as persistWidgetOpacity } from "../../shared/settings/widget";
+﻿import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  getWidgetHoverOpacity,
+  getWidgetOpacity,
+  getWidgetScale,
+  setWidgetHoverOpacity as persistWidgetHoverOpacity,
+  setWidgetOpacity as persistWidgetOpacity,
+  setWidgetScale as persistWidgetScale,
+} from "../../shared/settings/widget";
 import { getVisibleTasks, useTodoStore } from "../../shared/state/useTodoStore";
 import {
   emitWidgetSetLock,
@@ -22,10 +29,10 @@ import { GlobalPanel } from "./GlobalPanel";
 import { TaskPanel } from "./TaskPanel";
 
 const sidebarItems: Array<{ id: StandardSection; label: string; icon: string }> = [
-  { id: "home", label: "Home", icon: "⌂" },
-  { id: "global", label: "Global", icon: "◎" },
-  { id: "task", label: "Task", icon: "☑" },
-  { id: "stats", label: "Stats", icon: "▤" },
+  { id: "home", label: "Home", icon: "🏠" },
+  { id: "global", label: "Global", icon: "🌐" },
+  { id: "task", label: "Task", icon: "✅" },
+  { id: "stats", label: "Stats", icon: "📊" },
 ];
 
 const sectionTitle: Record<StandardSection, string> = {
@@ -49,6 +56,8 @@ export function StandardModePage() {
   const [modalTaskTitle, setModalTaskTitle] = useState("");
   const [windowError, setWindowError] = useState<string | null>(null);
   const [widgetOpacity, setWidgetOpacity] = useState(() => getWidgetOpacity());
+  const [widgetHoverOpacity, setWidgetHoverOpacity] = useState(() => getWidgetHoverOpacity());
+  const [widgetScale, setWidgetScale] = useState(() => getWidgetScale());
   const [activeSection, setActiveSection] = useState<StandardSection>("home");
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
 
@@ -268,6 +277,19 @@ export function StandardModePage() {
     persistWidgetOpacity(value);
   };
 
+  const onWidgetHoverOpacityChange = (value: number) => {
+    setWidgetHoverOpacity(value);
+    persistWidgetHoverOpacity(value);
+  };
+  const onWidgetScaleChange = (value: number) => {
+    setWidgetScale(value);
+    persistWidgetScale(value);
+  };
+  const onResetWidgetScale = () => {
+    setWidgetScale(100);
+    persistWidgetScale(100);
+  };
+
   return (
     <div className="standard-shell">
       <aside className="standard-sidebar" aria-label="Sidebar navigation">
@@ -292,7 +314,7 @@ export function StandardModePage() {
 
         <div className="sidebar-footer">
           <label className="sidebar-opacity-label" htmlFor="sidebar-opacity-slider">
-            Opacity
+            {`Widget Background (${widgetOpacity}%)`}
           </label>
           <input
             id="sidebar-opacity-slider"
@@ -303,6 +325,33 @@ export function StandardModePage() {
             value={widgetOpacity}
             onChange={(event) => onWidgetOpacityChange(Number(event.currentTarget.value))}
           />
+          <label className="sidebar-opacity-label" htmlFor="sidebar-hover-opacity-slider">
+            {`Hover Background (${widgetHoverOpacity}%)`}
+          </label>
+          <input
+            id="sidebar-hover-opacity-slider"
+            className="sidebar-opacity-slider"
+            type="range"
+            min={0}
+            max={100}
+            value={widgetHoverOpacity}
+            onChange={(event) => onWidgetHoverOpacityChange(Number(event.currentTarget.value))}
+          />
+          <label className="sidebar-opacity-label" htmlFor="sidebar-scale-slider">
+            {`Widget Scale (${widgetScale}%)`}
+          </label>
+          <input
+            id="sidebar-scale-slider"
+            className="sidebar-opacity-slider"
+            type="range"
+            min={70}
+            max={300}
+            value={widgetScale}
+            onChange={(event) => onWidgetScaleChange(Number(event.currentTarget.value))}
+          />
+          <button className="sidebar-scale-reset-button" onClick={onResetWidgetScale} type="button">
+            Reset Scale to 100%
+          </button>
           <button className="sidebar-widget-button" onClick={onToggleWidgetVisibility} type="button">
             {widgetVisible ? "Hide Widget" : "Show Widget"}
           </button>
@@ -314,22 +363,18 @@ export function StandardModePage() {
           <header className="standard-header">
             <h1 className="standard-title">{sectionTitle[activeSection]}</h1>
             <div className="standard-header-actions">
-              <button className="widget-align-toggle" onClick={onToggleWidgetAlignMode} type="button">
+              <button className={`widget-align-toggle ${widgetAlignMode === "right" ? "is-open" : "is-closed"}`} onClick={onToggleWidgetAlignMode} type="button">
                 {widgetAlignMode === "right" ? "Widget: Right Align" : "Widget: Left Align"}
               </button>
-              <button className="widget-visibility-toggle" onClick={onToggleWidgetVisibility} type="button">
+              <button className={`widget-visibility-toggle ${widgetVisible ? "is-open" : "is-closed"}`} onClick={onToggleWidgetVisibility} type="button">
                 {widgetVisible ? "Widget: Visible" : "Widget: Hidden"}
               </button>
-              <button className="widget-view-toggle" onClick={onToggleWidgetTaskView} type="button">
+              <button className={`widget-view-toggle ${widgetShowAllTasks ? "is-open" : "is-closed"}`} onClick={onToggleWidgetTaskView} type="button">
                 {widgetShowAllTasks ? "Widget: All Tasks" : "Widget: Active Only"}
               </button>
-              <button className="widget-lock-toggle" onClick={onToggleWidgetLock} type="button">
+              <button className={`widget-lock-toggle ${widgetLocked ? "is-open" : "is-closed"}`} onClick={onToggleWidgetLock} type="button">
                 {widgetLocked ? "Unlock Widget" : "Lock Widget"}
-              </button>
-              <button className="icon-button" onClick={onToggleWidgetVisibility} type="button" aria-label="Toggle widget mode">
-                ⚙
-              </button>
-            </div>
+              </button></div>
           </header>
 
           {activeSection === "home" ? (
@@ -352,8 +397,7 @@ export function StandardModePage() {
                   type="button"
                   aria-label="Open add task dialog"
                 >
-                  ＋
-                </button>
+                  锛?                </button>
                 <input
                   className="task-input-field"
                   onChange={(event) => setNewTaskTitle(event.currentTarget.value)}
@@ -419,3 +463,12 @@ export function StandardModePage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+

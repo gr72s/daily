@@ -1,7 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { getWidgetLocked, getWidgetPosition } from "../settings/widget";
+import { getWidgetLocked, getWidgetPosition, getWidgetScale } from "../settings/widget";
 import type {
   AppMode,
   TaskStatusSyncPayload,
@@ -16,6 +17,8 @@ const widgetSetLockStateEvent = "widget-set-lock-state";
 const widgetSetVisibilityStateEvent = "widget-set-visibility-state";
 const widgetTaskViewUpdatedEvent = "widget-task-view-updated";
 const widgetAlignmentUpdatedEvent = "widget-alignment-updated";
+const widgetBaseWindowWidth = 360;
+const widgetBaseWindowHeight = 760;
 
 declare global {
   interface Window {
@@ -28,6 +31,59 @@ function isTauriRuntime() {
   return typeof window !== "undefined" && typeof window.__TAURI_INTERNALS__ !== "undefined";
 }
 
+let widgetWindowCreationPromise: Promise<void> | null = null;
+
+function resolveWidgetWindowSize(scalePercent: number) {
+  const normalizedScale = Math.max(70, Math.min(300, Math.round(scalePercent))) / 100;
+  return {
+    width: Math.round(widgetBaseWindowWidth * normalizedScale),
+    height: Math.round(widgetBaseWindowHeight * normalizedScale),
+  };
+}
+
+type WidgetWindowLike = {
+  setSize: (size: LogicalSize) => Promise<void>;
+  setPosition?: (position: LogicalPosition) => Promise<void>;
+  outerPosition?: () => Promise<{ x: number; y: number; toLogical: (scaleFactor: number) => { x: number; y: number } }>;
+  outerSize?: () => Promise<{ width: number; height: number; toLogical: (scaleFactor: number) => { width: number; height: number } }>;
+  scaleFactor?: () => Promise<number>;
+};
+
+let widgetLastAppliedLogicalSize: { width: number; height: number } | null = null;
+
+async function setWidgetSizeSafe(target: WidgetWindowLike, scalePercent: number) {
+  try {
+    const nextLogicalSize = resolveWidgetWindowSize(scalePercent);
+    const nextSize = new LogicalSize(nextLogicalSize.width, nextLogicalSize.height);
+
+    if (target.setPosition && target.outerPosition && target.scaleFactor) {
+      const scaleFactor = await target.scaleFactor();
+      const currentOuterPosition = await target.outerPosition();
+      const currentLogicalPosition = currentOuterPosition.toLogical(scaleFactor);
+      let currentLogicalWidth = widgetLastAppliedLogicalSize?.width;
+
+      if (typeof currentLogicalWidth !== "number" && target.outerSize) {
+        const currentOuterSize = await target.outerSize();
+        currentLogicalWidth = currentOuterSize.toLogical(scaleFactor).width;
+      }
+
+      if (typeof currentLogicalWidth !== "number") {
+        currentLogicalWidth = nextLogicalSize.width;
+      }
+
+      const anchoredRight = currentLogicalPosition.x + currentLogicalWidth;
+      await target.setSize(nextSize);
+      widgetLastAppliedLogicalSize = nextLogicalSize;
+      await target.setPosition(new LogicalPosition(Math.round(anchoredRight - nextLogicalSize.width), Math.round(currentLogicalPosition.y)));
+      return;
+    }
+
+    await target.setSize(nextSize);
+    widgetLastAppliedLogicalSize = nextLogicalSize;
+  } catch {
+    // Ignore runtime differences for size updates.
+  }
+}
 async function removeWindowShadowSafe(target: { setShadow: (enable: boolean) => Promise<void> }) {
   try {
     await target.setShadow(false);
@@ -59,61 +115,108 @@ export async function ensureWidgetWindow() {
     return;
   }
 
-  const existing = await WebviewWindow.getByLabel("widget");
-  if (existing) {
-    const locked = getWidgetLocked();
-    await removeWindowShadowSafe(existing);
-    await existing.setIgnoreCursorEvents(locked);
-    await existing.setFocusable(!locked);
-    await existing.show();
-    if (!locked) {
-      await existing.setFocus();
-    }
+  if (widgetWindowCreationPromise) {
+    await widgetWindowCreationPromise;
     return;
   }
 
-  const widgetUrl = `${window.location.origin}/?mode=widget`;
-  const widgetPosition = getWidgetPosition();
-
-  const widget = new WebviewWindow("widget", {
-    url: widgetUrl,
-    title: "Daily Widget",
-    width: 360,
-    height: 760,
-    x: widgetPosition?.x,
-    y: widgetPosition?.y,
-    resizable: false,
-    decorations: false,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    transparent: true,
-    focus: true,
-  });
-
-  await new Promise<void>((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      reject(new Error("Widget window creation timeout."));
-    }, 5000);
-
-    void widget.once("tauri://created", async () => {
-      window.clearTimeout(timeout);
-      try {
-        await removeWindowShadowSafe(widget);
-        await widget.show();
-        await widget.setFocus();
-        resolve();
-      } catch (error) {
-        reject(error);
+  const ensure = async () => {
+    const existing = await WebviewWindow.getByLabel("widget");
+    if (existing) {
+      const locked = getWidgetLocked();
+      await setWidgetSizeSafe(existing, getWidgetScale());
+      await removeWindowShadowSafe(existing);
+      await existing.setIgnoreCursorEvents(locked);
+      await existing.setFocusable(!locked);
+      await existing.show();
+      if (!locked) {
+        await existing.setFocus();
       }
+      return;
+    }
+
+    const widgetUrl = `${window.location.origin}/?mode=widget`;
+    const widgetPosition = getWidgetPosition();
+    const { width, height } = resolveWidgetWindowSize(getWidgetScale());
+
+    const widget = new WebviewWindow("widget", {
+      url: widgetUrl,
+      title: "Daily Widget",
+      width,
+      height,
+      x: widgetPosition?.x,
+      y: widgetPosition?.y,
+      resizable: false,
+      decorations: false,
+      alwaysOnTop: true,
+      skipTaskbar: true,
+      transparent: true,
+      focus: true,
     });
 
-    void widget.once("tauri://error", (error) => {
-      window.clearTimeout(timeout);
-      reject(new Error(typeof error.payload === "string" ? error.payload : "Failed to create widget window."));
+    await new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        reject(new Error("Widget window creation timeout."));
+      }, 5000);
+
+      void widget.once("tauri://created", async () => {
+        window.clearTimeout(timeout);
+        try {
+          await setWidgetSizeSafe(widget, getWidgetScale());
+          await removeWindowShadowSafe(widget);
+          await widget.show();
+          await widget.setFocus();
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      void widget.once("tauri://error", (error) => {
+        window.clearTimeout(timeout);
+        reject(new Error(typeof error.payload === "string" ? error.payload : "Failed to create widget window."));
+      });
     });
+  };
+
+  widgetWindowCreationPromise = ensure().catch(async (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.toLowerCase().includes("already exists")) {
+      const existing = await WebviewWindow.getByLabel("widget");
+      if (existing) {
+        const locked = getWidgetLocked();
+        await setWidgetSizeSafe(existing, getWidgetScale());
+        await removeWindowShadowSafe(existing);
+        await existing.setIgnoreCursorEvents(locked);
+        await existing.setFocusable(!locked);
+        await existing.show();
+        if (!locked) {
+          await existing.setFocus();
+        }
+        return;
+      }
+    }
+
+    throw error;
+  }).finally(() => {
+    widgetWindowCreationPromise = null;
   });
+
+  await widgetWindowCreationPromise;
 }
 
+export async function applyWidgetScaleWindowSize(scalePercent: number) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  const existing = await WebviewWindow.getByLabel("widget");
+  if (!existing) {
+    return;
+  }
+
+  await setWidgetSizeSafe(existing, scalePercent);
+}
 export async function setWidgetWindowVisibility(visible: boolean) {
   if (!isTauriRuntime()) {
     return;

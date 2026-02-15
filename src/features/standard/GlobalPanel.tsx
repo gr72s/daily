@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+﻿import { FormEvent, useMemo, useState } from "react";
 import { getGlobalTasks, getLogsForGlobal, useTodoStore } from "../../shared/state/useTodoStore";
 import type { LogType, TaskKind, TodoGlobal } from "../../shared/types/todo";
 
@@ -59,10 +59,19 @@ export function GlobalPanel() {
     [logs, selectedGlobal, tasks],
   );
 
+  const submitGlobal = () => {
+    const normalizedTitle = newGlobalTitle.trim();
+    if (!normalizedTitle) {
+      return;
+    }
+
+    addGlobal(normalizedTitle);
+    setNewGlobalTitle("");
+  };
+
   const onSubmitGlobal = (event: FormEvent) => {
     event.preventDefault();
-    addGlobal(newGlobalTitle);
-    setNewGlobalTitle("");
+    submitGlobal();
   };
 
   const onSubmitTask = (event: FormEvent) => {
@@ -96,7 +105,7 @@ export function GlobalPanel() {
             placeholder="Add a global..."
             value={newGlobalTitle}
           />
-          <button className="global-create-button" type="submit">
+          <button className="global-create-button" onClick={submitGlobal} type="button">
             Add
           </button>
         </form>
@@ -227,3 +236,5 @@ export function GlobalPanel() {
     </section>
   );
 }
+
+
