@@ -24,6 +24,7 @@ import {
   startWidgetDragging,
   syncWidgetLockedState,
 } from "../../shared/tauri/window";
+import { saveWidgetPositionToPersistedAppConfig } from "../../shared/tauri/storage";
 import { getWidgetTasks, useTodoStore } from "../../shared/state/useTodoStore";
 import { WidgetTaskRow } from "./WidgetTaskRow";
 
@@ -109,6 +110,7 @@ export function WidgetModePage() {
     let unlistenTasksState: (() => void) | undefined;
     let unlistenWidgetTaskView: (() => void) | undefined;
     let unlistenWidgetAlignment: (() => void) | undefined;
+    let widgetPositionPersistTimer: ReturnType<typeof setTimeout> | undefined;
 
     void onWidgetForceUnlock(() => {
       setWidgetLocked(false);
@@ -132,6 +134,12 @@ export function WidgetModePage() {
 
     void onWidgetMoved((position) => {
       setWidgetPosition(position);
+      if (widgetPositionPersistTimer) {
+        clearTimeout(widgetPositionPersistTimer);
+      }
+      widgetPositionPersistTimer = setTimeout(() => {
+        void saveWidgetPositionToPersistedAppConfig(position).catch(() => {});
+      }, 220);
     }).then((dispose) => {
       if (isDisposed) {
         dispose();
@@ -217,6 +225,9 @@ export function WidgetModePage() {
       }
       if (unlistenWidgetAlignment) {
         unlistenWidgetAlignment();
+      }
+      if (widgetPositionPersistTimer) {
+        clearTimeout(widgetPositionPersistTimer);
       }
     };
   }, [applySyncedTaskStatus, applySyncedTasksState, applySyncedWidgetTaskView, applySyncedWidgetAlignment, setWidgetLocked]);

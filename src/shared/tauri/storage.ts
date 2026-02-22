@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { PersistedAppConfig, PersistedAppData } from "../types/todo";
+import type { PersistedAppConfig, PersistedAppData, WidgetPosition } from "../types/todo";
 
 declare global {
   interface Window {
@@ -43,4 +43,22 @@ export async function savePersistedAppConfig(config: PersistedAppConfig) {
   }
 
   await invoke("save_app_config", { config });
+}
+
+export async function saveWidgetPositionToPersistedAppConfig(position: WidgetPosition) {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  const current = await loadPersistedAppConfig();
+  const next: PersistedAppConfig = {
+    schemaVersion: typeof current?.schemaVersion === "number" ? current.schemaVersion : 1,
+    widgetVisible: typeof current?.widgetVisible === "boolean" ? current.widgetVisible : false,
+    widgetPosition: {
+      x: Math.round(position.x),
+      y: Math.round(position.y),
+    },
+  };
+
+  await savePersistedAppConfig(next);
 }

@@ -1,5 +1,10 @@
 import { create } from "zustand";
-import { getWidgetLocked, setWidgetLocked as persistWidgetLocked } from "../settings/widget";
+import {
+  getWidgetLocked,
+  getWidgetPosition,
+  setWidgetLocked as persistWidgetLocked,
+  setWidgetPosition as persistWidgetPosition,
+} from "../settings/widget";
 import {
   emitTaskStatusUpdated,
   emitTasksStateUpdated,
@@ -188,7 +193,28 @@ function normalizePersistedConfig(config: PersistedAppConfig | null) {
     return null;
   }
 
+  if (
+    typeof config.widgetPosition !== "undefined"
+    && (
+      typeof config.widgetPosition !== "object"
+      || config.widgetPosition === null
+      || typeof config.widgetPosition.x !== "number"
+      || typeof config.widgetPosition.y !== "number"
+    )
+  ) {
+    return null;
+  }
+
   return config;
+}
+
+function buildPersistedConfig(widgetVisible: boolean): PersistedAppConfig {
+  const widgetPosition = getWidgetPosition();
+  return {
+    schemaVersion: configSchemaVersion,
+    widgetVisible,
+    widgetPosition: widgetPosition ?? undefined,
+  };
 }
 
 function applyMutation(get: () => TodoState, mutate: () => void) {
@@ -556,10 +582,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     }),
   setWidgetVisible: (widgetVisible) => {
     set({ widgetVisible });
-    void savePersistedAppConfig({
-      schemaVersion: configSchemaVersion,
-      widgetVisible,
-    });
+    void savePersistedAppConfig(buildPersistedConfig(widgetVisible));
   },
   setWidgetShowAllTasks: (showAllTasks) => {
     applyMutation(get, () => {
@@ -595,11 +618,11 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     try {
       const persistedConfig = normalizePersistedConfig(await loadPersistedAppConfig());
       const initialWidgetVisible = persistedConfig?.widgetVisible ?? false;
+      if (!getWidgetPosition() && persistedConfig?.widgetPosition) {
+        persistWidgetPosition(persistedConfig.widgetPosition);
+      }
       if (!persistedConfig) {
-        await savePersistedAppConfig({
-          schemaVersion: configSchemaVersion,
-          widgetVisible: initialWidgetVisible,
-        });
+        await savePersistedAppConfig(buildPersistedConfig(initialWidgetVisible));
       }
 
       const persisted = normalizePersistedData(await loadPersistedAppData());

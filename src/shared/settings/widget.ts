@@ -1,13 +1,10 @@
-﻿const widgetOpacityKey = "daily.widget.opacity";
+import type { WidgetPosition } from "../types/todo";
+
+const widgetOpacityKey = "daily.widget.opacity";
 const widgetHoverOpacityKey = "daily.widget.hoverOpacity";
 const widgetScaleKey = "daily.widget.scale";
 const widgetLockedKey = "daily.widget.locked";
 const widgetPositionKey = "daily.widget.position";
-
-export interface WidgetPosition {
-  x: number;
-  y: number;
-}
 
 function clampOpacity(value: number) {
   if (Number.isNaN(value)) {
@@ -200,4 +197,3 @@ export function setWidgetPosition(position: WidgetPosition) {
     }),
   );
 }
-

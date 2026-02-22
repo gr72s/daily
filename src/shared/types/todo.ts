@@ -66,9 +66,15 @@ export interface PersistedAppData {
   widgetAlignMode?: WidgetAlignMode;
 }
 
+export interface WidgetPosition {
+  x: number;
+  y: number;
+}
+
 export interface PersistedAppConfig {
   schemaVersion: number;
   widgetVisible: boolean;
+  widgetPosition?: WidgetPosition;
 }
 
 export interface TaskStatusSyncPayload {

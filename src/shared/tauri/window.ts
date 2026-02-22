@@ -4,6 +4,7 @@ import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { currentMonitor, primaryMonitor } from "@tauri-apps/api/window";
 import { getWidgetLocked, getWidgetPosition, getWidgetScale, setWidgetPosition } from "../settings/widget";
+import { saveWidgetPositionToPersistedAppConfig } from "./storage";
 import type {
   AppMode,
   TaskStatusSyncPayload,
@@ -271,6 +272,11 @@ export async function resetWidgetWindowPosition() {
   }
 
   setWidgetPosition(nextPosition);
+  try {
+    await saveWidgetPositionToPersistedAppConfig(nextPosition);
+  } catch {
+    // Keep reset behavior even if config persistence fails.
+  }
 
   const existing = await WebviewWindow.getByLabel("widget");
   if (!existing) {
