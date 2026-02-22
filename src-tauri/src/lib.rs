@@ -14,7 +14,7 @@ use tauri::{
     tray::TrayIconBuilder,
     Emitter, Manager, Runtime,
 };
-use tauri_plugin_global_shortcut::{Code, Modifiers, ShortcutState};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, ShortcutState};
 
 const TRAY_ID: &str = "daily-tray";
 const TRAY_MENU_OPEN_MAIN: &str = "tray-open-main";
@@ -34,6 +34,7 @@ const CONFIG_SCHEMA_VERSION: u32 = 1;
 #[cfg(windows)]
 const WIN_UNREGISTER_CLASS_ERROR_TOKEN: &str =
     "Failed to unregister class Chrome_WidgetWin_0. Error = 1412";
+static EXIT_SEQUENCE_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 #[derive(Default)]
 struct ExitState(AtomicBool);
@@ -262,6 +263,179 @@ fn toggle_widget_lock_v2<R: Runtime>(app: &tauri::AppHandle<R>) {
         "Widget lock state changed.",
         Some(serde_json::json!({ "locked": next_locked })),
     );
+}
+
+fn perform_exit_sequence_on_main_thread<R: Runtime>(app: &tauri::AppHandle<R>) -> Result<(), String> {
+    let app_handle = app.clone();
+    let (sender, receiver) = std::sync::mpsc::channel::<Result<(), String>>();
+
+    app.run_on_main_thread(move || {
+        let result = (|| -> Result<(), String> {
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.sequence.start",
+                "Exit sequence started.",
+                Some(serde_json::json!({ "thread": "main-thread" })),
+            );
+
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.shortcuts.start",
+                "Starting global shortcut unregistration.",
+                None,
+            );
+            if let Err(error) = app_handle.global_shortcut().unregister_all() {
+                let message = format!("failed to unregister global shortcuts: {error}");
+                log_project_event(
+                    &app_handle,
+                    "error",
+                    "tray.exit.step.shortcuts.failure",
+                    "Global shortcut unregistration failed.",
+                    Some(serde_json::json!({ "error": error.to_string() })),
+                );
+                return Err(message);
+            }
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.shortcuts.success",
+                "Global shortcut unregistration completed.",
+                None,
+            );
+
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.tray.start",
+                "Starting tray resource removal.",
+                Some(serde_json::json!({ "tray_id": TRAY_ID })),
+            );
+            if app_handle.remove_tray_by_id(TRAY_ID).is_none() {
+                log_project_event(
+                    &app_handle,
+                    "error",
+                    "tray.exit.step.tray.failure",
+                    "Tray resource removal failed.",
+                    Some(serde_json::json!({ "tray_id": TRAY_ID })),
+                );
+                return Err(format!("tray resource `{TRAY_ID}` was not found"));
+            }
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.tray.success",
+                "Tray resource removal completed.",
+                Some(serde_json::json!({ "tray_id": TRAY_ID })),
+            );
+
+            let windows = app_handle.webview_windows();
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.windows.start",
+                "Starting window close sequence.",
+                Some(serde_json::json!({ "count": windows.len() })),
+            );
+            for (label, window) in windows {
+                log_project_event(
+                    &app_handle,
+                    "info",
+                    "tray.exit.step.window.start",
+                    "Starting window close.",
+                    Some(serde_json::json!({ "label": label })),
+                );
+                if let Err(error) = window.close() {
+                    let message = format!("failed to close window `{label}`: {error}");
+                    log_project_event(
+                        &app_handle,
+                        "error",
+                        "tray.exit.step.window.failure",
+                        "Window close failed.",
+                        Some(serde_json::json!({
+                            "label": label,
+                            "error": error.to_string()
+                        })),
+                    );
+                    return Err(message);
+                }
+                log_project_event(
+                    &app_handle,
+                    "info",
+                    "tray.exit.step.window.success",
+                    "Window close completed.",
+                    Some(serde_json::json!({ "label": label })),
+                );
+            }
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.windows.success",
+                "Window close sequence completed.",
+                None,
+            );
+
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.exit.start",
+                "Calling app.exit(0).",
+                Some(serde_json::json!({ "code": 0 })),
+            );
+            app_handle.exit(0);
+            log_project_event(
+                &app_handle,
+                "info",
+                "tray.exit.step.exit.success",
+                "app.exit(0) invoked.",
+                Some(serde_json::json!({ "code": 0 })),
+            );
+            Ok(())
+        })();
+
+        let _ = sender.send(result);
+    })
+    .map_err(|error| format!("failed to dispatch exit sequence to main thread: {error}"))?;
+
+    receiver
+        .recv()
+        .map_err(|error| format!("failed to receive exit sequence result: {error}"))?
+}
+
+fn release_resources_and_exit<R: Runtime>(app: tauri::AppHandle<R>) {
+    log_project_event(
+        &app,
+        "info",
+        "tray.exit.thread.start",
+        "Exit cleanup thread started.",
+        Some(serde_json::json!({ "thread": "tray-exit-cleanup" })),
+    );
+
+    match perform_exit_sequence_on_main_thread(&app) {
+        Ok(()) => {
+            log_project_event(
+                &app,
+                "info",
+                "tray.exit.sequence.completed",
+                "Exit sequence completed successfully.",
+                None,
+            );
+        }
+        Err(error) => {
+            EXIT_SEQUENCE_REQUESTED.store(false, Ordering::SeqCst);
+            if let Some(exit_state) = app.try_state::<ExitState>() {
+                exit_state.0.store(false, Ordering::SeqCst);
+            }
+            log_project_event(
+                &app,
+                "error",
+                "tray.exit.sequence.aborted",
+                "Exit sequence aborted due to step failure.",
+                Some(serde_json::json!({ "error": error })),
+            );
+        }
+    }
 }
 
 #[cfg(windows)]
@@ -627,18 +801,49 @@ pub fn run() {
                 );
             }
             TRAY_MENU_EXIT => {
-                if let Some(exit_state) = app.try_state::<ExitState>() {
-                    exit_state.0.store(true, Ordering::SeqCst);
+                let already_exiting = app
+                    .try_state::<ExitState>()
+                    .map(|state| state.0.swap(true, Ordering::SeqCst))
+                    .unwrap_or(false);
+                if already_exiting {
+                    log_project_event(
+                        app,
+                        "info",
+                        "tray.exit.duplicate_request",
+                        "Ignored duplicate tray exit request while exit is in progress.",
+                        None,
+                    );
+                    return;
                 }
 
+                EXIT_SEQUENCE_REQUESTED.store(true, Ordering::SeqCst);
                 log_project_event(
                     app,
                     "info",
-                    "tray.exit",
-                    "Tray menu requested app exit.",
+                    "tray.exit.requested",
+                    "Tray exit requested; scheduling cleanup thread.",
                     None,
                 );
-                app.exit(0);
+
+                let app_handle = app.clone();
+                if let Err(error) = std::thread::Builder::new()
+                    .name("tray-exit-cleanup".to_string())
+                    .spawn(move || {
+                        release_resources_and_exit(app_handle);
+                    })
+                {
+                    EXIT_SEQUENCE_REQUESTED.store(false, Ordering::SeqCst);
+                    if let Some(exit_state) = app.try_state::<ExitState>() {
+                        exit_state.0.store(false, Ordering::SeqCst);
+                    }
+                    log_project_event(
+                        app,
+                        "error",
+                        "tray.exit.thread_spawn_failed",
+                        "Failed to spawn cleanup thread for exit sequence.",
+                        Some(serde_json::json!({ "error": error.to_string() })),
+                    );
+                }
             }
             _ => {}
         })
@@ -734,6 +939,10 @@ pub fn run() {
     if let Err(error) = result {
         if is_ignorable_shutdown_error(&error) {
             eprintln!("[exit] ignored known Windows shutdown error: {error}");
+            return;
+        }
+        if EXIT_SEQUENCE_REQUESTED.load(Ordering::SeqCst) {
+            eprintln!("[exit] runtime returned error during requested exit sequence: {error}");
             return;
         }
 
