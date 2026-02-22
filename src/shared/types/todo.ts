@@ -1,40 +1,25 @@
 export type TaskStatus = "active" | "completed";
 
-export type TaskKind = "task" | "delay";
-
-export type TaskPriority = "urgent" | "high" | "normal";
-
-export type WidgetColor = "blue" | "orange" | "red";
-
 export type TaskFilter = "all" | "active" | "completed";
 
-export type SortMode = "status" | "priority";
+export type SortMode = "status" | "date";
 
 export type AppMode = "standard" | "widget";
 
 export type GlobalStatus = "active" | "completed" | "terminated";
 
-export type LogType = "exception" | "simple" | "spark" | "conclusion";
+export type TaskLogType = "simple" | "exception" | "progress" | "conclusion";
 
 export type WidgetAlignMode = "left" | "right";
 
-export type StandardSection = "home" | "global" | "task" | "tag" | "stats";
+export type StandardSection = "home" | "global" | "task" | "spark" | "tag" | "stats";
 
 export interface TodoTask {
   id: string;
   title: string;
+  executionDate: string;
   status: TaskStatus;
-  kind: TaskKind;
-  priority: TaskPriority;
-  subtitle?: string;
-  dueText?: string;
-  hasException?: boolean;
-  assignees?: string[];
-  widgetColor: WidgetColor;
   tags?: string[];
-  closedAt?: string;
-  globalId?: string;
-  parentTaskId?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -44,24 +29,36 @@ export interface TodoGlobal {
   title: string;
   description?: string;
   status: GlobalStatus;
+  startDate: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface TodoLog {
+export interface TodoTaskLog {
   id: string;
-  taskId?: string;
-  type: LogType;
+  taskId: string;
+  type: TaskLogType;
   content: string;
   createdAt: string;
   updatedAt: string;
 }
 
+export interface TodoSpark {
+  id: string;
+  title: string;
+  description?: string;
+  globalIds?: string[];
+  taskIds?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface PersistedAppData {
-  schemaVersion: number;
+  schemaVersion: 2;
   tasks: TodoTask[];
   globals: TodoGlobal[];
-  logs: TodoLog[];
+  taskLogs: TodoTaskLog[];
+  sparks: TodoSpark[];
   widgetShowAllTasks?: boolean;
   widgetAlignMode?: WidgetAlignMode;
 }
@@ -80,7 +77,6 @@ export interface PersistedAppConfig {
 export interface TaskStatusSyncPayload {
   taskId: string;
   status: TaskStatus;
-  closedAt?: string;
   updatedAt: string;
   sourceWindowLabel?: string | null;
 }

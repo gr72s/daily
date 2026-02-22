@@ -5,16 +5,9 @@ interface TaskRowProps {
   onToggle: (id: string) => void;
 }
 
-function AssigneeAvatars({ assignees }: { assignees: string[] }) {
-  return (
-    <div className="task-assignees" aria-label="Task assignees">
-      {assignees.map((name) => (
-        <span key={name} className="task-assignee-avatar">
-          {name}
-        </span>
-      ))}
-    </div>
-  );
+function formatTaskMeta(task: TodoTask) {
+  const tagsText = task.tags && task.tags.length > 0 ? ` · ${task.tags.join(", ")}` : "";
+  return `${task.executionDate}${tagsText}`;
 }
 
 export function TaskRow({ task, onToggle }: TaskRowProps) {
@@ -35,23 +28,11 @@ export function TaskRow({ task, onToggle }: TaskRowProps) {
         <p className="task-title" title={task.title}>
           {task.title}
         </p>
-
-        {task.priority === "urgent" ? (
-          <p className="task-meta task-meta-urgent">
-            <span className="task-meta-dot" />
-            Urgent
-          </p>
-        ) : task.subtitle ? (
-          <p className="task-meta">{task.subtitle}</p>
-        ) : task.kind === "delay" ? (
-          <p className="task-meta task-meta-delay">Delay Task</p>
-        ) : null}
+        <p className="task-meta">{formatTaskMeta(task)}</p>
       </div>
 
       <div className="task-right">
-        {task.assignees?.length ? <AssigneeAvatars assignees={task.assignees} /> : null}
-        {task.dueText ? <span className="task-due-text">{task.dueText}</span> : null}
-        {isCompleted ? <span className="task-completed-icon">✓</span> : null}
+        {isCompleted ? <span className="task-completed-icon">OK</span> : null}
       </div>
     </article>
   );

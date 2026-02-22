@@ -12,7 +12,6 @@ import {
   emitWidgetTaskViewUpdated,
   getCurrentWindowLabelSafe,
 } from "../tauri/window";
-import { priorityOrder } from "../theme/tokens";
 import {
   loadPersistedAppConfig,
   loadPersistedAppData,
@@ -21,38 +20,76 @@ import {
 } from "../tauri/storage";
 import type {
   GlobalStatus,
-  LogType,
   PersistedAppConfig,
   PersistedAppData,
   SortMode,
   TaskFilter,
-  TaskKind,
+  TaskLogType,
+  TaskStatus,
   TaskStatusSyncPayload,
   TasksStateSyncPayload,
+  TodoGlobal,
+  TodoSpark,
+  TodoTask,
+  TodoTaskLog,
   WidgetAlignMode,
   WidgetAlignmentSyncPayload,
   WidgetTaskViewSyncPayload,
-  TodoGlobal,
-  TodoLog,
-  TodoTask,
 } from "../types/todo";
+
+interface AddTaskInput {
+  title: string;
+  executionDate?: string;
+  status?: TaskStatus;
+  tags?: string[];
+}
+
+interface UpdateTaskInput {
+  title?: string;
+  executionDate?: string;
+  status?: TaskStatus;
+  tags?: string[];
+}
+
+interface AddGlobalInput {
+  title: string;
+  description?: string;
+  status?: GlobalStatus;
+  startDate?: string;
+}
 
 interface UpdateGlobalInput {
   title?: string;
   description?: string;
   status?: GlobalStatus;
+  startDate?: string;
 }
 
-interface AddLogInput {
-  taskId?: string;
-  type: LogType;
+interface AddTaskLogInput {
+  taskId: string;
+  type: TaskLogType;
   content: string;
+}
+
+interface AddSparkInput {
+  title: string;
+  description?: string;
+  globalIds?: string[];
+  taskIds?: string[];
+}
+
+interface UpdateSparkInput {
+  title?: string;
+  description?: string;
+  globalIds?: string[];
+  taskIds?: string[];
 }
 
 interface TodoState {
   tasks: TodoTask[];
   globals: TodoGlobal[];
-  logs: TodoLog[];
+  taskLogs: TodoTaskLog[];
+  sparks: TodoSpark[];
   selectedGlobalId: string | null;
   filter: TaskFilter;
   sortMode: SortMode;
@@ -66,15 +103,16 @@ interface TodoState {
   applySyncedTasksState: (payload: TasksStateSyncPayload) => void;
   applySyncedWidgetTaskView: (payload: WidgetTaskViewSyncPayload) => void;
   applySyncedWidgetAlignment: (payload: WidgetAlignmentSyncPayload) => void;
-  addTask: (title: string) => void;
-  addTaskToGlobal: (globalId: string, title: string, kind: TaskKind) => void;
-  addDelayToTask: (taskId: string, title: string) => void;
+  addTask: (input: AddTaskInput) => void;
+  updateTask: (id: string, input: UpdateTaskInput) => void;
   addTaskTag: (taskId: string, tag: string) => void;
   removeTaskTag: (taskId: string, tag: string) => void;
-  addGlobal: (title: string) => void;
+  addGlobal: (input: AddGlobalInput) => void;
   updateGlobal: (id: string, input: UpdateGlobalInput) => void;
   selectGlobal: (id: string | null) => void;
-  addLog: (input: AddLogInput) => void;
+  addTaskLog: (input: AddTaskLogInput) => void;
+  addSpark: (input: AddSparkInput) => void;
+  updateSpark: (id: string, input: UpdateSparkInput) => void;
   setFilter: (filter: TaskFilter) => void;
   setSortMode: (sortMode: SortMode) => void;
   setWidgetLocked: (locked: boolean) => void;
@@ -87,41 +125,32 @@ interface TodoState {
   initializeData: () => Promise<void>;
 }
 
-const schemaVersion = 1;
+const schemaVersion = 2 as const;
 const configSchemaVersion = 1;
 const emptyTasks: TodoTask[] = [];
 const emptyGlobals: TodoGlobal[] = [];
-const emptyLogs: TodoLog[] = [];
-
-function bySortMode(left: TodoTask, right: TodoTask, sortMode: SortMode) {
-  if (sortMode === "priority") {
-    const priorityCompare = priorityOrder[left.priority] - priorityOrder[right.priority];
-    if (priorityCompare !== 0) {
-      return priorityCompare;
-    }
-  }
-
-  const statusCompare = Number(left.status === "completed") - Number(right.status === "completed");
-  if (statusCompare !== 0) {
-    return statusCompare;
-  }
-
-  if (sortMode === "status") {
-    const priorityCompare = priorityOrder[left.priority] - priorityOrder[right.priority];
-    if (priorityCompare !== 0) {
-      return priorityCompare;
-    }
-  }
-
-  return left.title.localeCompare(right.title);
-}
-
-function pickWidgetColor(kind: TaskKind): TodoTask["widgetColor"] {
-  return kind === "delay" ? "orange" : "blue";
-}
+const emptyTaskLogs: TodoTaskLog[] = [];
+const emptySparks: TodoSpark[] = [];
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function todayDateKey() {
+  return nowIso().slice(0, 10);
+}
+
+function normalizeDateKey(value: string | undefined) {
+  if (!value) {
+    return todayDateKey();
+  }
+
+  const normalized = value.trim().slice(0, 10);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return normalized;
+  }
+
+  return todayDateKey();
 }
 
 function normalizeTaskTags(tags: string[] | undefined) {
@@ -142,14 +171,58 @@ function normalizeTaskTags(tags: string[] | undefined) {
   return normalized;
 }
 
+function normalizeIdList(values: string[] | undefined, allowedIds: Set<string>) {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+
+  const normalized: string[] = [];
+  for (const value of values) {
+    const id = value.trim();
+    if (!id || normalized.includes(id) || !allowedIds.has(id)) {
+      continue;
+    }
+    normalized.push(id);
+  }
+  return normalized;
+}
+
+function bySortMode(left: TodoTask, right: TodoTask, sortMode: SortMode) {
+  const leftStatusRank = left.status === "active" ? 0 : 1;
+  const rightStatusRank = right.status === "active" ? 0 : 1;
+
+  if (sortMode === "status") {
+    if (leftStatusRank !== rightStatusRank) {
+      return leftStatusRank - rightStatusRank;
+    }
+    const dateCompare = left.executionDate.localeCompare(right.executionDate);
+    if (dateCompare !== 0) {
+      return dateCompare;
+    }
+    return left.title.localeCompare(right.title);
+  }
+
+  const dateCompare = right.executionDate.localeCompare(left.executionDate);
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+
+  if (leftStatusRank !== rightStatusRank) {
+    return leftStatusRank - rightStatusRank;
+  }
+
+  return left.title.localeCompare(right.title);
+}
+
 function toPersistedData(
-  state: Pick<TodoState, "tasks" | "globals" | "logs" | "widgetShowAllTasks" | "widgetAlignMode">,
+  state: Pick<TodoState, "tasks" | "globals" | "taskLogs" | "sparks" | "widgetShowAllTasks" | "widgetAlignMode">,
 ): PersistedAppData {
   return {
     schemaVersion,
     tasks: state.tasks,
     globals: state.globals,
-    logs: state.logs,
+    taskLogs: state.taskLogs,
+    sparks: state.sparks,
     widgetShowAllTasks: state.widgetShowAllTasks,
     widgetAlignMode: state.widgetAlignMode,
   };
@@ -177,7 +250,7 @@ function normalizePersistedData(data: PersistedAppData | null) {
     return null;
   }
 
-  if (!Array.isArray(data.tasks) || !Array.isArray(data.globals) || !Array.isArray(data.logs)) {
+  if (!Array.isArray(data.tasks) || !Array.isArray(data.globals) || !Array.isArray(data.taskLogs) || !Array.isArray(data.sparks)) {
     return null;
   }
 
@@ -247,21 +320,11 @@ export function getWidgetTasks(tasks: TodoTask[], sortMode: SortMode, showAllTas
   return sorted.filter((task) => task.status === "active").slice(0, 8);
 }
 
-export function getGlobalTasks(tasks: TodoTask[], globalId: string) {
-  return tasks.filter((task) => task.globalId === globalId).sort((left, right) => bySortMode(left, right, "status"));
-}
-
-export function getLogsForGlobal(logs: TodoLog[], tasks: TodoTask[], globalId: string) {
-  const taskIds = new Set(tasks.filter((task) => task.globalId === globalId).map((task) => task.id));
-  return logs
-    .filter((log) => (log.taskId ? taskIds.has(log.taskId) : true))
-    .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-}
-
 export const useTodoStore = create<TodoState>((set, get) => ({
   tasks: emptyTasks,
   globals: emptyGlobals,
-  logs: emptyLogs,
+  taskLogs: emptyTaskLogs,
+  sparks: emptySparks,
   selectedGlobalId: null,
   filter: "all",
   sortMode: "status",
@@ -279,20 +342,17 @@ export const useTodoStore = create<TodoState>((set, get) => ({
             return task;
           }
 
-          const nextStatus = task.status === "completed" ? "active" : "completed";
+          const nextStatus: TaskStatus = task.status === "completed" ? "active" : "completed";
           const updatedAt = nowIso();
-          const closedAt = nextStatus === "completed" ? updatedAt : undefined;
           syncPayload = {
             taskId: task.id,
             status: nextStatus,
-            closedAt,
             updatedAt,
             sourceWindowLabel: getCurrentWindowLabelSafe(),
           };
           return {
             ...task,
             status: nextStatus,
-            closedAt,
             updatedAt,
           };
         }),
@@ -313,7 +373,6 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         return {
           ...task,
           status: payload.status,
-          closedAt: payload.closedAt,
           updatedAt: payload.updatedAt,
         };
       }),
@@ -328,7 +387,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   applySyncedWidgetAlignment: ({ alignMode }) => {
     set({ widgetAlignMode: alignMode });
   },
-  addTask: (title) => {
+  addTask: ({ title, executionDate, status, tags }) => {
     const normalizedTitle = title.trim();
     if (!normalizedTitle) {
       return;
@@ -336,15 +395,15 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
     applyMutation(get, () => {
       const createdAt = nowIso();
+      const normalizedTags = normalizeTaskTags(tags);
       set((state) => ({
         tasks: [
           {
             id: crypto.randomUUID(),
             title: normalizedTitle,
-            status: "active",
-            kind: "task",
-            priority: "normal",
-            widgetColor: "blue",
+            executionDate: normalizeDateKey(executionDate),
+            status: status ?? "active",
+            tags: normalizedTags.length > 0 ? normalizedTags : undefined,
             createdAt,
             updatedAt: createdAt,
           },
@@ -357,75 +416,55 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       sourceWindowLabel: getCurrentWindowLabelSafe(),
     });
   },
-  addTaskToGlobal: (globalId, title, kind) => {
-    const normalizedTitle = title.trim();
-    if (!normalizedTitle) {
-      return;
-    }
-
+  updateTask: (id, input) => {
+    let updated = false;
     applyMutation(get, () => {
-      const createdAt = nowIso();
       set((state) => ({
-        tasks: [
-          {
-            id: crypto.randomUUID(),
-            title: normalizedTitle,
-            status: "active",
-            kind,
-            priority: "normal",
-            widgetColor: pickWidgetColor(kind),
-            globalId,
-            createdAt,
-            updatedAt: createdAt,
-          },
-          ...state.tasks,
-        ],
+        tasks: state.tasks.map((task) => {
+          if (task.id !== id) {
+            return task;
+          }
+
+          const nextTitle = typeof input.title === "string" ? input.title.trim() : task.title;
+          if (!nextTitle) {
+            return task;
+          }
+
+          const nextExecutionDate = input.executionDate ? normalizeDateKey(input.executionDate) : task.executionDate;
+          const nextStatus = input.status ?? task.status;
+          const nextTags = typeof input.tags !== "undefined" ? normalizeTaskTags(input.tags) : normalizeTaskTags(task.tags);
+
+          const hasChanges =
+            nextTitle !== task.title
+            || nextExecutionDate !== task.executionDate
+            || nextStatus !== task.status
+            || JSON.stringify(nextTags) !== JSON.stringify(normalizeTaskTags(task.tags));
+
+          if (!hasChanges) {
+            return task;
+          }
+
+          updated = true;
+          return {
+            ...task,
+            title: nextTitle,
+            executionDate: nextExecutionDate,
+            status: nextStatus,
+            tags: nextTags.length > 0 ? nextTags : undefined,
+            updatedAt: nowIso(),
+          };
+        }),
       }));
     });
-    void emitTasksStateUpdated({
-      tasks: get().tasks,
-      sourceWindowLabel: getCurrentWindowLabelSafe(),
-    });
-  },
-  addDelayToTask: (taskId, title) => {
-    const normalizedTitle = title.trim();
-    if (!normalizedTitle) {
-      return;
-    }
 
-    applyMutation(get, () => {
-      set((state) => {
-        const parentTask = state.tasks.find((task) => task.id === taskId && task.kind === "task");
-        if (!parentTask) {
-          return state;
-        }
-
-        const createdAt = nowIso();
-        return {
-          tasks: [
-            {
-              id: crypto.randomUUID(),
-              title: normalizedTitle,
-              status: "active",
-              kind: "delay",
-              priority: "normal",
-              widgetColor: "orange",
-              globalId: parentTask.globalId,
-              parentTaskId: parentTask.id,
-              createdAt,
-              updatedAt: createdAt,
-            },
-            ...state.tasks,
-          ],
-        };
+    if (updated) {
+      void emitTasksStateUpdated({
+        tasks: get().tasks,
+        sourceWindowLabel: getCurrentWindowLabelSafe(),
       });
-    });
-    void emitTasksStateUpdated({
-      tasks: get().tasks,
-      sourceWindowLabel: getCurrentWindowLabelSafe(),
-    });
+    }
   },
-    addTaskTag: (taskId, tag) => {
+  addTaskTag: (taskId, tag) => {
     const normalizedTag = tag.trim();
     if (!normalizedTag) {
       return;
@@ -499,7 +538,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       });
     }
   },
-  addGlobal: (title) => {
+  addGlobal: ({ title, description, status, startDate }) => {
     const normalizedTitle = title.trim();
     if (!normalizedTitle) {
       return;
@@ -507,10 +546,13 @@ export const useTodoStore = create<TodoState>((set, get) => ({
 
     applyMutation(get, () => {
       const createdAt = nowIso();
+      const normalizedDescription = description?.trim();
       const newGlobal: TodoGlobal = {
         id: crypto.randomUUID(),
         title: normalizedTitle,
-        status: "active",
+        description: normalizedDescription ? normalizedDescription : undefined,
+        status: status ?? "active",
+        startDate: normalizeDateKey(startDate),
         createdAt,
         updatedAt: createdAt,
       };
@@ -529,9 +571,19 @@ export const useTodoStore = create<TodoState>((set, get) => ({
             return globalItem;
           }
 
+          const nextTitle = typeof input.title === "string" ? input.title.trim() : globalItem.title;
+          if (!nextTitle) {
+            return globalItem;
+          }
+
           return {
             ...globalItem,
-            ...input,
+            title: nextTitle,
+            description: typeof input.description === "string"
+              ? (input.description.trim() ? input.description.trim() : undefined)
+              : globalItem.description,
+            status: input.status ?? globalItem.status,
+            startDate: input.startDate ? normalizeDateKey(input.startDate) : globalItem.startDate,
             updatedAt: nowIso(),
           };
         }),
@@ -539,16 +591,20 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     });
   },
   selectGlobal: (id) => set({ selectedGlobalId: id }),
-  addLog: ({ content, taskId, type }) => {
+  addTaskLog: ({ taskId, type, content }) => {
     const normalizedContent = content.trim();
     if (!normalizedContent) {
+      return;
+    }
+
+    if (!get().tasks.some((task) => task.id === taskId)) {
       return;
     }
 
     applyMutation(get, () => {
       const createdAt = nowIso();
       set((state) => ({
-        logs: [
+        taskLogs: [
           {
             id: crypto.randomUUID(),
             taskId,
@@ -557,14 +613,75 @@ export const useTodoStore = create<TodoState>((set, get) => ({
             createdAt,
             updatedAt: createdAt,
           },
-          ...state.logs,
+          ...state.taskLogs,
         ],
-        tasks:
-          type === "exception" && taskId
-            ? state.tasks.map((task) =>
-                task.id === taskId ? { ...task, hasException: true, updatedAt: nowIso() } : task,
-              )
-            : state.tasks,
+      }));
+    });
+  },
+  addSpark: ({ title, description, globalIds, taskIds }) => {
+    const normalizedTitle = title.trim();
+    if (!normalizedTitle) {
+      return;
+    }
+
+    applyMutation(get, () => {
+      const createdAt = nowIso();
+      const globalIdSet = new Set(get().globals.map((globalItem) => globalItem.id));
+      const taskIdSet = new Set(get().tasks.map((task) => task.id));
+      const normalizedGlobalIds = normalizeIdList(globalIds, globalIdSet);
+      const normalizedTaskIds = normalizeIdList(taskIds, taskIdSet);
+      const normalizedDescription = description?.trim();
+
+      const nextSpark: TodoSpark = {
+        id: crypto.randomUUID(),
+        title: normalizedTitle,
+        description: normalizedDescription ? normalizedDescription : undefined,
+        globalIds: normalizedGlobalIds.length > 0 ? normalizedGlobalIds : undefined,
+        taskIds: normalizedTaskIds.length > 0 ? normalizedTaskIds : undefined,
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      set((state) => ({
+        sparks: [nextSpark, ...state.sparks],
+      }));
+    });
+  },
+  updateSpark: (id, input) => {
+    applyMutation(get, () => {
+      const globalIdSet = new Set(get().globals.map((globalItem) => globalItem.id));
+      const taskIdSet = new Set(get().tasks.map((task) => task.id));
+
+      set((state) => ({
+        sparks: state.sparks.map((spark) => {
+          if (spark.id !== id) {
+            return spark;
+          }
+
+          const nextTitle = typeof input.title === "string" ? input.title.trim() : spark.title;
+          if (!nextTitle) {
+            return spark;
+          }
+
+          const nextDescription = typeof input.description === "string"
+            ? (input.description.trim() ? input.description.trim() : undefined)
+            : spark.description;
+          const nextGlobalIds = typeof input.globalIds !== "undefined"
+            ? normalizeIdList(input.globalIds, globalIdSet)
+            : (spark.globalIds ?? []);
+          const nextTaskIds = typeof input.taskIds !== "undefined"
+            ? normalizeIdList(input.taskIds, taskIdSet)
+            : (spark.taskIds ?? []);
+
+          return {
+            ...spark,
+            title: nextTitle,
+            description: nextDescription,
+            globalIds: nextGlobalIds.length > 0 ? nextGlobalIds : undefined,
+            taskIds: nextTaskIds.length > 0 ? nextTaskIds : undefined,
+            updatedAt: nowIso(),
+          };
+        }),
       }));
     });
   },
@@ -630,7 +747,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         set({
           tasks: persisted.tasks,
           globals: persisted.globals,
-          logs: persisted.logs,
+          taskLogs: persisted.taskLogs,
+          sparks: persisted.sparks,
           widgetVisible: initialWidgetVisible,
           widgetShowAllTasks: persisted.widgetShowAllTasks ?? false,
           widgetAlignMode: persisted.widgetAlignMode ?? "right",
@@ -644,7 +762,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         schemaVersion,
         tasks: [],
         globals: [],
-        logs: [],
+        taskLogs: [],
+        sparks: [],
         widgetShowAllTasks: false,
         widgetAlignMode: "right",
       };
@@ -652,7 +771,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       set({
         tasks: emptyData.tasks,
         globals: emptyData.globals,
-        logs: emptyData.logs,
+        taskLogs: emptyData.taskLogs,
+        sparks: emptyData.sparks,
         widgetVisible: initialWidgetVisible,
         widgetShowAllTasks: emptyData.widgetShowAllTasks ?? false,
         widgetAlignMode: emptyData.widgetAlignMode ?? "right",
@@ -664,7 +784,8 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       set({
         tasks: [],
         globals: [],
-        logs: [],
+        taskLogs: [],
+        sparks: [],
         widgetVisible: false,
         widgetShowAllTasks: false,
         widgetAlignMode: "right",

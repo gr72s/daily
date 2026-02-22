@@ -3,7 +3,8 @@ import type { StandardSection } from "../types/todo";
 const navItems: Array<{ id: StandardSection; label: string; icon: string; badge?: boolean }> = [
   { id: "home", label: "Home", icon: "H" },
   { id: "global", label: "Global", icon: "G" },
-  { id: "task", label: "Task", icon: "T", badge: true },
+  { id: "task", label: "Task", icon: "T" },
+  { id: "spark", label: "Spark", icon: "*" },
   { id: "tag", label: "Tag", icon: "#" },
   { id: "stats", label: "Stats", icon: "S" },
 ];

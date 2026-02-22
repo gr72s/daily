@@ -19,7 +19,6 @@ export function WidgetTaskRow({ task, onToggle, alignMode }: WidgetTaskRowProps)
     >
       {isLeftAlign ? <span className={`widget-dot ${dotStatusClass}`} aria-hidden="true" /> : null}
       <p className="widget-task-title" title={task.title}>
-        {task.hasException ? <span className="widget-task-exception">!</span> : null}
         {task.title}
       </p>
       {isLeftAlign ? null : <span className={`widget-dot ${dotStatusClass}`} aria-hidden="true" />}

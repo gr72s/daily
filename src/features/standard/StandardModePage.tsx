@@ -28,12 +28,14 @@ import { FilterTabs } from "../../shared/ui/FilterTabs";
 import { TaskRow } from "../../shared/ui/TaskRow";
 import { GlobalPanel } from "./GlobalPanel";
 import { TaskPanel } from "./TaskPanel";
+import { SparkPanel } from "./SparkPanel";
 import { TagPanel } from "./TagPanel";
 
 const sidebarItems: Array<{ id: StandardSection; label: string; icon: string }> = [
   { id: "home", label: "Home", icon: "H" },
   { id: "global", label: "Global", icon: "G" },
   { id: "task", label: "Task", icon: "T" },
+  { id: "spark", label: "Spark", icon: "*" },
   { id: "tag", label: "Tag", icon: "#" },
   { id: "stats", label: "Stats", icon: "S" },
 ];
@@ -42,6 +44,7 @@ const sectionTitle: Record<StandardSection, string> = {
   home: "Home",
   global: "Global",
   task: "Task",
+  spark: "Spark",
   tag: "Tag",
   stats: "Stats",
 };
@@ -89,7 +92,7 @@ export function StandardModePage() {
 
   const onSubmit = (event: FormEvent) => {
     event.preventDefault();
-    addTask(newTaskTitle);
+    addTask({ title: newTaskTitle });
     setNewTaskTitle("");
   };
 
@@ -109,7 +112,7 @@ export function StandardModePage() {
       return;
     }
 
-    addTask(normalizedTitle);
+    addTask({ title: normalizedTitle });
     setModalTaskTitle("");
     closeAddTaskModal();
   };
@@ -398,10 +401,10 @@ export function StandardModePage() {
                 <FilterTabs value={filter} onChange={setFilter} />
                 <button
                   className="sort-pill"
-                  onClick={() => setSortMode(sortMode === "status" ? "priority" : "status")}
+                  onClick={() => setSortMode(sortMode === "status" ? "date" : "status")}
                   type="button"
                 >
-                  Sort: {sortMode === "status" ? "Status" : "Priority"}
+                  Sort: {sortMode === "status" ? "Status" : "Date"}
                 </button>
               </section>
 
@@ -436,6 +439,7 @@ export function StandardModePage() {
 
           {activeSection === "global" ? <GlobalPanel /> : null}
           {activeSection === "task" ? <TaskPanel /> : null}
+          {activeSection === "spark" ? <SparkPanel /> : null}
           {activeSection === "tag" ? <TagPanel /> : null}
           {activeSection === "stats" ? <ComingSoonSection section="stats" /> : null}
 

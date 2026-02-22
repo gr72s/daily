@@ -1,43 +1,56 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { getVisibleTasks, useTodoStore } from "../../shared/state/useTodoStore";
-import type { LogType, TodoTask } from "../../shared/types/todo";
+import type { TaskLogType, TaskStatus, TodoTask } from "../../shared/types/todo";
 
-const logTypes: LogType[] = ["simple", "exception", "spark", "conclusion"];
+const taskLogTypes: TaskLogType[] = ["simple", "progress", "exception", "conclusion"];
 
-function dateKey(value?: string) {
-  return value ? value.slice(0, 10) : "";
+function todayDateKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
-function taskDate(task: TodoTask) {
-  return task.createdAt ?? task.closedAt;
+function normalizeTagsFromInput(value: string) {
+  return value
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter((tag, index, all) => Boolean(tag) && all.indexOf(tag) === index);
 }
 
 function formatDateTime(value?: string) {
   if (!value) {
-    return "—";
+    return "-";
   }
 
   return new Date(value).toLocaleString();
 }
 
+function taskDate(task: TodoTask) {
+  return task.executionDate;
+}
+
 export function TaskPanel() {
   const tasks = useTodoStore((state) => state.tasks);
-  const logs = useTodoStore((state) => state.logs);
+  const taskLogs = useTodoStore((state) => state.taskLogs);
   const sortMode = useTodoStore((state) => state.sortMode);
+  const addTask = useTodoStore((state) => state.addTask);
+  const updateTask = useTodoStore((state) => state.updateTask);
   const toggleTask = useTodoStore((state) => state.toggleTask);
-  const addDelayToTask = useTodoStore((state) => state.addDelayToTask);
-  const addLog = useTodoStore((state) => state.addLog);
+  const addTaskLog = useTodoStore((state) => state.addTaskLog);
 
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDate, setNewTaskDate] = useState(todayDateKey());
+  const [newTaskStatus, setNewTaskStatus] = useState<TaskStatus>("active");
+  const [newTaskTags, setNewTaskTags] = useState("");
   const [dateFilter, setDateFilter] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [delayTitle, setDelayTitle] = useState("");
-  const [logType, setLogType] = useState<LogType>("simple");
-  const [logContent, setLogContent] = useState("");
-  const [conclusionTaskId, setConclusionTaskId] = useState<string | null>(null);
-  const [conclusionContent, setConclusionContent] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editDate, setEditDate] = useState(todayDateKey());
+  const [editStatus, setEditStatus] = useState<TaskStatus>("active");
+  const [editTagsInput, setEditTagsInput] = useState("");
+  const [newLogType, setNewLogType] = useState<TaskLogType>("simple");
+  const [newLogContent, setNewLogContent] = useState("");
 
   const taskCandidates = useMemo(
-    () => getVisibleTasks([...tasks], "all", sortMode).filter((task) => task.kind === "task"),
+    () => getVisibleTasks([...tasks], "all", sortMode),
     [sortMode, tasks],
   );
 
@@ -46,7 +59,7 @@ export function TaskPanel() {
       return taskCandidates;
     }
 
-    return taskCandidates.filter((task) => dateKey(taskDate(task)) === dateFilter);
+    return taskCandidates.filter((task) => taskDate(task) === dateFilter);
   }, [dateFilter, taskCandidates]);
 
   useEffect(() => {
@@ -55,97 +68,103 @@ export function TaskPanel() {
     }
   }, [filteredTasks, selectedTaskId]);
 
-  useEffect(() => {
-    if (conclusionTaskId && !tasks.some((task) => task.id === conclusionTaskId)) {
-      setConclusionTaskId(null);
-      setConclusionContent("");
-    }
-  }, [conclusionTaskId, tasks]);
-
   const selectedTask = useMemo(
-    () => tasks.find((task) => task.id === selectedTaskId && task.kind === "task") ?? null,
+    () => tasks.find((task) => task.id === selectedTaskId) ?? null,
     [selectedTaskId, tasks],
   );
 
-  const relatedDelays = useMemo(() => {
+  useEffect(() => {
     if (!selectedTask) {
-      return [];
+      setEditTitle("");
+      setEditDate(todayDateKey());
+      setEditStatus("active");
+      setEditTagsInput("");
+      return;
     }
 
-    return tasks
-      .filter((task) => task.kind === "delay" && task.parentTaskId === selectedTask.id)
-      .sort((left, right) => left.title.localeCompare(right.title));
-  }, [selectedTask, tasks]);
+    setEditTitle(selectedTask.title);
+    setEditDate(selectedTask.executionDate);
+    setEditStatus(selectedTask.status);
+    setEditTagsInput((selectedTask.tags ?? []).join(", "));
+  }, [selectedTask]);
 
   const relatedLogs = useMemo(() => {
     if (!selectedTask) {
       return [];
     }
 
-    return logs
+    return taskLogs
       .filter((log) => log.taskId === selectedTask.id)
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  }, [logs, selectedTask]);
+  }, [taskLogs, selectedTask]);
 
-  const onToggleTask = (task: TodoTask) => {
-    const completing = task.status !== "completed";
-    toggleTask(task.id);
-
-    if (completing) {
-      setSelectedTaskId(task.id);
-      setConclusionTaskId(task.id);
-      setConclusionContent("");
-      setLogType("conclusion");
-    } else if (conclusionTaskId === task.id) {
-      setConclusionTaskId(null);
-      setConclusionContent("");
-    }
+  const onSubmitCreateTask = (event: FormEvent) => {
+    event.preventDefault();
+    addTask({
+      title: newTaskTitle,
+      executionDate: newTaskDate,
+      status: newTaskStatus,
+      tags: normalizeTagsFromInput(newTaskTags),
+    });
+    setNewTaskTitle("");
+    setNewTaskDate(todayDateKey());
+    setNewTaskStatus("active");
+    setNewTaskTags("");
   };
 
-  const onSubmitDelay = (event: FormEvent) => {
+  const onSubmitTaskEditor = (event: FormEvent) => {
     event.preventDefault();
     if (!selectedTask) {
       return;
     }
 
-    addDelayToTask(selectedTask.id, delayTitle);
-    setDelayTitle("");
+    updateTask(selectedTask.id, {
+      title: editTitle,
+      executionDate: editDate,
+      status: editStatus,
+      tags: normalizeTagsFromInput(editTagsInput),
+    });
   };
 
-  const onSubmitLog = (event: FormEvent) => {
+  const onSubmitTaskLog = (event: FormEvent) => {
     event.preventDefault();
     if (!selectedTask) {
       return;
     }
 
-    addLog({
+    addTaskLog({
       taskId: selectedTask.id,
-      type: logType,
-      content: logContent,
+      type: newLogType,
+      content: newLogContent,
     });
-    setLogContent("");
-  };
-
-  const onSubmitConclusion = (event: FormEvent) => {
-    event.preventDefault();
-    if (!conclusionTaskId) {
-      return;
-    }
-
-    addLog({
-      taskId: conclusionTaskId,
-      type: "conclusion",
-      content: conclusionContent,
-    });
-    setConclusionTaskId(null);
-    setConclusionContent("");
+    setNewLogContent("");
   };
 
   return (
-    <section className="task-panel-layout" aria-label="Task search and relation">
+    <section className="task-panel-layout" aria-label="Task management">
       <aside className="task-search-panel">
+        <form className="task-create-form" onSubmit={onSubmitCreateTask}>
+          <input
+            value={newTaskTitle}
+            onChange={(event) => setNewTaskTitle(event.currentTarget.value)}
+            placeholder="Task title (required)"
+            required
+          />
+          <input type="date" value={newTaskDate} onChange={(event) => setNewTaskDate(event.currentTarget.value)} required />
+          <select value={newTaskStatus} onChange={(event) => setNewTaskStatus(event.currentTarget.value as TaskStatus)}>
+            <option value="active">active</option>
+            <option value="completed">completed</option>
+          </select>
+          <input
+            value={newTaskTags}
+            onChange={(event) => setNewTaskTags(event.currentTarget.value)}
+            placeholder="Tags (optional, comma separated)"
+          />
+          <button type="submit">Create Task</button>
+        </form>
+
         <div className="task-search-header">
-          <label htmlFor="task-date-filter">Date</label>
+          <label htmlFor="task-date-filter">Execution Date</label>
           <input
             id="task-date-filter"
             type="date"
@@ -169,11 +188,11 @@ export function TaskPanel() {
                 type="button"
               >
                 <label className="task-search-check">
-                  <input checked={task.status === "completed"} onChange={() => onToggleTask(task)} type="checkbox" />
+                  <input checked={task.status === "completed"} onChange={() => toggleTask(task.id)} type="checkbox" />
                 </label>
                 <div className="task-search-content">
                   <p>{task.title}</p>
-                  <span>{formatDateTime(taskDate(task))}</span>
+                  <span>{task.executionDate}</span>
                 </div>
               </button>
             ))
@@ -191,68 +210,33 @@ export function TaskPanel() {
               <span className={`task-detail-status is-${selectedTask.status}`}>{selectedTask.status}</span>
             </header>
 
-            {conclusionTaskId === selectedTask.id ? (
-              <form className="task-conclusion-form" onSubmit={onSubmitConclusion}>
-                <h4>Conclusion Mode</h4>
-                <textarea
-                  rows={3}
-                  value={conclusionContent}
-                  onChange={(event) => setConclusionContent(event.currentTarget.value)}
-                  placeholder="Summarize outcome for this completed task..."
-                />
-                <div className="task-conclusion-actions">
-                  <button type="submit">Save Conclusion</button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setConclusionTaskId(null);
-                      setConclusionContent("");
-                    }}
-                  >
-                    Skip
-                  </button>
-                </div>
-              </form>
-            ) : null}
+            <form className="task-edit-form" onSubmit={onSubmitTaskEditor}>
+              <input
+                value={editTitle}
+                onChange={(event) => setEditTitle(event.currentTarget.value)}
+                placeholder="Task title"
+              />
+              <input type="date" value={editDate} onChange={(event) => setEditDate(event.currentTarget.value)} />
+              <select value={editStatus} onChange={(event) => setEditStatus(event.currentTarget.value as TaskStatus)}>
+                <option value="active">active</option>
+                <option value="completed">completed</option>
+              </select>
+              <input
+                value={editTagsInput}
+                onChange={(event) => setEditTagsInput(event.currentTarget.value)}
+                placeholder="Tags (comma separated)"
+              />
+              <button type="submit">Save Task</button>
+            </form>
 
-            <div className="task-detail-grid">
+            <div className="task-detail-grid task-detail-grid-single">
               <section className="task-detail-card">
                 <header className="task-detail-card-header">
-                  <h4>Delay Tasks</h4>
+                  <h4>Task Logs</h4>
                 </header>
-                <form className="task-detail-inline-form" onSubmit={onSubmitDelay}>
-                  <input
-                    value={delayTitle}
-                    onChange={(event) => setDelayTitle(event.currentTarget.value)}
-                    placeholder="Add delay task..."
-                  />
-                  <button type="submit">Add</button>
-                </form>
-                <div className="task-detail-list">
-                  {relatedDelays.length > 0 ? (
-                    relatedDelays.map((delayTask) => (
-                      <label key={delayTask.id} className="task-delay-row">
-                        <input
-                          checked={delayTask.status === "completed"}
-                          onChange={() => toggleTask(delayTask.id)}
-                          type="checkbox"
-                        />
-                        <span>{delayTask.title}</span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className="task-detail-empty">No linked delay tasks.</p>
-                  )}
-                </div>
-              </section>
-
-              <section className="task-detail-card">
-                <header className="task-detail-card-header">
-                  <h4>Logs</h4>
-                </header>
-                <form className="task-log-form" onSubmit={onSubmitLog}>
-                  <select value={logType} onChange={(event) => setLogType(event.currentTarget.value as LogType)}>
-                    {logTypes.map((type) => (
+                <form className="task-log-form" onSubmit={onSubmitTaskLog}>
+                  <select value={newLogType} onChange={(event) => setNewLogType(event.currentTarget.value as TaskLogType)}>
+                    {taskLogTypes.map((type) => (
                       <option key={type} value={type}>
                         {type}
                       </option>
@@ -260,9 +244,9 @@ export function TaskPanel() {
                   </select>
                   <textarea
                     rows={3}
-                    value={logContent}
-                    onChange={(event) => setLogContent(event.currentTarget.value)}
-                    placeholder="Write a related log..."
+                    value={newLogContent}
+                    onChange={(event) => setNewLogContent(event.currentTarget.value)}
+                    placeholder="Write a task log..."
                   />
                   <button type="submit">Add Log</button>
                 </form>
@@ -278,14 +262,14 @@ export function TaskPanel() {
                       </article>
                     ))
                   ) : (
-                    <p className="task-detail-empty">No linked logs.</p>
+                    <p className="task-detail-empty">No logs for this task.</p>
                   )}
                 </div>
               </section>
             </div>
           </>
         ) : (
-          <div className="task-empty">Select a task to view related delay tasks and logs.</div>
+          <div className="task-empty">Select a task to view details.</div>
         )}
       </div>
     </section>
