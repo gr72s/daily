@@ -411,6 +411,11 @@ fn focus_main_window(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn resize_widget_window_atomic(app: tauri::AppHandle, scale_percent: u16) -> Result<(), String> {
+    window::resize_widget_window_atomic(&app, scale_percent)
+}
+
+#[tauri::command]
 fn sync_widget_locked_state(app: tauri::AppHandle, locked: bool) -> Result<(), String> {
     let Some(widget_lock_state) = app.try_state::<WidgetLockState>() else {
         return Err("Widget lock state is not initialized.".to_string());
@@ -716,6 +721,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             ensure_widget_window,
             focus_main_window,
+            resize_widget_window_atomic,
             sync_widget_locked_state,
             sync_widget_visibility_state,
             load_app_data,

@@ -1,10 +1,11 @@
 import type { StandardSection } from "../types/todo";
 
 const navItems: Array<{ id: StandardSection; label: string; icon: string; badge?: boolean }> = [
-  { id: "home", label: "Home", icon: "⌂" },
-  { id: "global", label: "Global", icon: "◉" },
-  { id: "task", label: "Task", icon: "☑", badge: true },
-  { id: "stats", label: "Stats", icon: "▥" },
+  { id: "home", label: "Home", icon: "H" },
+  { id: "global", label: "Global", icon: "G" },
+  { id: "task", label: "Task", icon: "T", badge: true },
+  { id: "tag", label: "Tag", icon: "#" },
+  { id: "stats", label: "Stats", icon: "S" },
 ];
 
 interface BottomNavProps {

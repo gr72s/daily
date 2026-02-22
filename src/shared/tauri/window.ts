@@ -2,7 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { getWidgetLocked, getWidgetPosition, getWidgetScale } from "../settings/widget";
+import { currentMonitor, primaryMonitor } from "@tauri-apps/api/window";
+import { getWidgetLocked, getWidgetPosition, getWidgetScale, setWidgetPosition } from "../settings/widget";
 import type {
   AppMode,
   TaskStatusSyncPayload,
@@ -41,6 +42,22 @@ function resolveWidgetWindowSize(scalePercent: number) {
   };
 }
 
+async function resolveWidgetDefaultTopRightPosition() {
+  const monitor = (await currentMonitor()) ?? (await primaryMonitor());
+  if (!monitor) {
+    return null;
+  }
+
+  const logicalWorkAreaPosition = monitor.workArea.position.toLogical(monitor.scaleFactor);
+  const logicalWorkAreaSize = monitor.workArea.size.toLogical(monitor.scaleFactor);
+  const { width } = resolveWidgetWindowSize(getWidgetScale());
+
+  return {
+    x: Math.round(logicalWorkAreaPosition.x + logicalWorkAreaSize.width - width),
+    y: Math.round(logicalWorkAreaPosition.y),
+  };
+}
+
 type WidgetWindowLike = {
   setSize: (size: LogicalSize) => Promise<void>;
   setPosition?: (position: LogicalPosition) => Promise<void>;
@@ -50,6 +67,8 @@ type WidgetWindowLike = {
 };
 
 let widgetLastAppliedLogicalSize: { width: number; height: number } | null = null;
+let widgetScaleUpdateInFlight = false;
+let widgetPendingScalePercent: number | null = null;
 
 async function setWidgetSizeSafe(target: WidgetWindowLike, scalePercent: number) {
   try {
@@ -136,8 +155,11 @@ export async function ensureWidgetWindow() {
     }
 
     const widgetUrl = `${window.location.origin}/?mode=widget`;
-    const widgetPosition = getWidgetPosition();
+    const widgetPosition = getWidgetPosition() ?? (await resolveWidgetDefaultTopRightPosition());
     const { width, height } = resolveWidgetWindowSize(getWidgetScale());
+    if (widgetPosition) {
+      setWidgetPosition(widgetPosition);
+    }
 
     const widget = new WebviewWindow("widget", {
       url: widgetUrl,
@@ -210,13 +232,54 @@ export async function applyWidgetScaleWindowSize(scalePercent: number) {
     return;
   }
 
+  const normalizedScalePercent = Math.max(70, Math.min(300, Math.round(scalePercent)));
+  widgetPendingScalePercent = normalizedScalePercent;
+  if (widgetScaleUpdateInFlight) {
+    return;
+  }
+
+  widgetScaleUpdateInFlight = true;
+  try {
+    while (widgetPendingScalePercent !== null) {
+      const nextScalePercent = widgetPendingScalePercent;
+      widgetPendingScalePercent = null;
+
+      try {
+        await invoke("resize_widget_window_atomic", { scale_percent: nextScalePercent });
+        widgetLastAppliedLogicalSize = resolveWidgetWindowSize(nextScalePercent);
+      } catch {
+        const existing = await WebviewWindow.getByLabel("widget");
+        if (!existing) {
+          continue;
+        }
+        await setWidgetSizeSafe(existing, nextScalePercent);
+      }
+    }
+  } finally {
+    widgetScaleUpdateInFlight = false;
+  }
+}
+
+export async function resetWidgetWindowPosition() {
+  if (!isTauriRuntime()) {
+    return;
+  }
+
+  const nextPosition = await resolveWidgetDefaultTopRightPosition();
+  if (!nextPosition) {
+    return;
+  }
+
+  setWidgetPosition(nextPosition);
+
   const existing = await WebviewWindow.getByLabel("widget");
   if (!existing) {
     return;
   }
 
-  await setWidgetSizeSafe(existing, scalePercent);
+  await existing.setPosition(new LogicalPosition(nextPosition.x, nextPosition.y));
 }
+
 export async function setWidgetWindowVisibility(visible: boolean) {
   if (!isTauriRuntime()) {
     return;

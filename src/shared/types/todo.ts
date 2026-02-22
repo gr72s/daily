@@ -18,7 +18,7 @@ export type LogType = "exception" | "simple" | "spark" | "conclusion";
 
 export type WidgetAlignMode = "left" | "right";
 
-export type StandardSection = "home" | "global" | "task" | "stats";
+export type StandardSection = "home" | "global" | "task" | "tag" | "stats";
 
 export interface TodoTask {
   id: string;

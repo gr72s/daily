@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   color: #1f2937;
   background: #f6f6f8;
@@ -1015,6 +1015,192 @@ button {
   font-size: 12px;
 }
 
+
+.tag-layout {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 14px;
+}
+
+.tag-sidebar,
+.tag-main {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.tag-sidebar {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tag-sidebar-header,
+.tag-main-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tag-sidebar-header h3,
+.tag-main-header h3,
+.tag-editor h4 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.tag-clear-filter {
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: #eceef2;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-chip {
+  border-radius: 9999px;
+  padding: 4px 10px;
+  background: #f3f4f6;
+  color: #4b5563;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag-chip em {
+  font-style: normal;
+  color: #9ca3af;
+}
+
+.tag-chip.is-active {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.tag-main {
+  padding: 12px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 400px;
+}
+
+.tag-main-header span {
+  color: #6b7280;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  min-height: 180px;
+}
+
+.tag-task-card {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  text-align: left;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.tag-task-card:hover {
+  background: #f9fafb;
+}
+
+.tag-task-card.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.tag-task-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.tag-task-tags,
+.tag-editor-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-task-chip {
+  border-radius: 9999px;
+  padding: 2px 8px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tag-task-empty {
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.tag-editor {
+  border-top: 1px solid #eef2f7;
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.tag-editor-form {
+  display: flex;
+  gap: 8px;
+}
+
+.tag-editor-form input {
+  flex: 1;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.tag-editor-form button {
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag-remove-chip {
+  border-radius: 9999px;
+  padding: 4px 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tag-empty {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 12px;
+}
 .app-loading {
   width: 100vw;
   height: 100vh;
@@ -1161,6 +1347,19 @@ button {
   border-radius: 10px;
   --widget-bg-opacity: 0.2;
   --widget-scale: 1;
+  --widget-text-stroke-shadow-core:
+    0 1px 0 rgba(0, 0, 0, 0.95),
+    1px 0 0 rgba(0, 0, 0, 0.95),
+    0 -1px 0 rgba(0, 0, 0, 0.95),
+    -1px 0 0 rgba(0, 0, 0, 0.95),
+    1px 1px 0 rgba(0, 0, 0, 0.78),
+    -1px 1px 0 rgba(0, 0, 0, 0.78),
+    1px -1px 0 rgba(0, 0, 0, 0.78),
+    -1px -1px 0 rgba(0, 0, 0, 0.78);
+  --widget-text-stroke-shadow-soft:
+    0 2px 6px rgba(0, 0, 0, 0.72),
+    0 0 10px rgba(0, 0, 0, 0.42);
+  --widget-text-stroke-shadow: var(--widget-text-stroke-shadow-core), var(--widget-text-stroke-shadow-soft);
   width: 280px;
   color: #f8fafc;
   padding: 4px 4px 6px;
@@ -1333,9 +1532,10 @@ button {
   margin: 0;
   min-width: 0;
   flex: 1;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 500;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95);
+  text-shadow: var(--widget-text-stroke-shadow);
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
@@ -1356,6 +1556,7 @@ button {
 .widget-task-exception {
   color: #ef4444;
   margin-right: 6px;
+  text-shadow: inherit;
 }
 
 .widget-dot {
@@ -1428,7 +1629,7 @@ button {
     background: #ffffff;
     border-top: 1px solid #e5e7eb;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 }
 

@@ -64,6 +64,8 @@ interface TodoState {
   addTask: (title: string) => void;
   addTaskToGlobal: (globalId: string, title: string, kind: TaskKind) => void;
   addDelayToTask: (taskId: string, title: string) => void;
+  addTaskTag: (taskId: string, tag: string) => void;
+  removeTaskTag: (taskId: string, tag: string) => void;
   addGlobal: (title: string) => void;
   updateGlobal: (id: string, input: UpdateGlobalInput) => void;
   selectGlobal: (id: string | null) => void;
@@ -115,6 +117,24 @@ function pickWidgetColor(kind: TaskKind): TodoTask["widgetColor"] {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function normalizeTaskTags(tags: string[] | undefined) {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+
+  const normalized: string[] = [];
+  for (const rawTag of tags) {
+    const tag = rawTag.trim();
+    if (!tag || normalized.includes(tag)) {
+      continue;
+    }
+
+    normalized.push(tag);
+  }
+
+  return normalized;
 }
 
 function toPersistedData(
@@ -378,6 +398,80 @@ export const useTodoStore = create<TodoState>((set, get) => ({
       tasks: get().tasks,
       sourceWindowLabel: getCurrentWindowLabelSafe(),
     });
+  },
+    addTaskTag: (taskId, tag) => {
+    const normalizedTag = tag.trim();
+    if (!normalizedTag) {
+      return;
+    }
+
+    let updated = false;
+    applyMutation(get, () => {
+      set((state) => ({
+        tasks: state.tasks.map((task) => {
+          if (task.id !== taskId) {
+            return task;
+          }
+
+          const nextTags = normalizeTaskTags([...(task.tags ?? []), normalizedTag]);
+          const prevTags = normalizeTaskTags(task.tags);
+          if (prevTags.length === nextTags.length && prevTags.every((value, index) => value === nextTags[index])) {
+            return task;
+          }
+
+          updated = true;
+          return {
+            ...task,
+            tags: nextTags.length > 0 ? nextTags : undefined,
+            updatedAt: nowIso(),
+          };
+        }),
+      }));
+    });
+
+    if (updated) {
+      void emitTasksStateUpdated({
+        tasks: get().tasks,
+        sourceWindowLabel: getCurrentWindowLabelSafe(),
+      });
+    }
+  },
+  removeTaskTag: (taskId, tag) => {
+    const normalizedTag = tag.trim();
+    if (!normalizedTag) {
+      return;
+    }
+
+    let updated = false;
+    applyMutation(get, () => {
+      set((state) => ({
+        tasks: state.tasks.map((task) => {
+          if (task.id !== taskId) {
+            return task;
+          }
+
+          const prevTags = normalizeTaskTags(task.tags);
+          const nextTags = prevTags.filter((item) => item !== normalizedTag);
+          if (prevTags.length === nextTags.length) {
+            return task;
+          }
+
+          updated = true;
+          return {
+            ...task,
+            tags: nextTags.length > 0 ? nextTags : undefined,
+            updatedAt: nowIso(),
+          };
+        }),
+      }));
+    });
+
+    if (updated) {
+      void emitTasksStateUpdated({
+        tasks: get().tasks,
+        sourceWindowLabel: getCurrentWindowLabelSafe(),
+      });
+    }
   },
   addGlobal: (title) => {
     const normalizedTitle = title.trim();

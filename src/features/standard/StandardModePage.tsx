@@ -1,4 +1,4 @@
-﻿import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   getWidgetHoverOpacity,
   getWidgetOpacity,
@@ -19,6 +19,7 @@ import {
   onWidgetSetLock,
   syncWidgetLockedState,
   syncWidgetVisibilityState,
+  resetWidgetWindowPosition,
   setWidgetWindowVisibility,
 } from "../../shared/tauri/window";
 import type { StandardSection } from "../../shared/types/todo";
@@ -27,18 +28,21 @@ import { FilterTabs } from "../../shared/ui/FilterTabs";
 import { TaskRow } from "../../shared/ui/TaskRow";
 import { GlobalPanel } from "./GlobalPanel";
 import { TaskPanel } from "./TaskPanel";
+import { TagPanel } from "./TagPanel";
 
 const sidebarItems: Array<{ id: StandardSection; label: string; icon: string }> = [
-  { id: "home", label: "Home", icon: "🏠" },
-  { id: "global", label: "Global", icon: "🌐" },
-  { id: "task", label: "Task", icon: "✅" },
-  { id: "stats", label: "Stats", icon: "📊" },
+  { id: "home", label: "Home", icon: "H" },
+  { id: "global", label: "Global", icon: "G" },
+  { id: "task", label: "Task", icon: "T" },
+  { id: "tag", label: "Tag", icon: "#" },
+  { id: "stats", label: "Stats", icon: "S" },
 ];
 
 const sectionTitle: Record<StandardSection, string> = {
   home: "Home",
   global: "Global",
   task: "Task",
+  tag: "Tag",
   stats: "Stats",
 };
 
@@ -289,12 +293,20 @@ export function StandardModePage() {
     setWidgetScale(100);
     persistWidgetScale(100);
   };
+  const onResetWidgetPosition = async () => {
+    try {
+      setWindowError(null);
+      await resetWidgetWindowPosition();
+    } catch (error) {
+      setWindowError(error instanceof Error ? error.message : "Unable to reset widget position.");
+    }
+  };
 
   return (
     <div className="standard-shell">
       <aside className="standard-sidebar" aria-label="Sidebar navigation">
         <div className="sidebar-brand">
-          <span className="sidebar-brand-icon">✓</span>
+          <span className="sidebar-brand-icon">D</span>
           <span className="sidebar-brand-text">TauriDo</span>
         </div>
 
@@ -352,6 +364,9 @@ export function StandardModePage() {
           <button className="sidebar-scale-reset-button" onClick={onResetWidgetScale} type="button">
             Reset Scale to 100%
           </button>
+          <button className="sidebar-scale-reset-button" onClick={() => void onResetWidgetPosition()} type="button">
+            Reset Widget Position
+          </button>
           <button className="sidebar-widget-button" onClick={onToggleWidgetVisibility} type="button">
             {widgetVisible ? "Hide Widget" : "Show Widget"}
           </button>
@@ -397,7 +412,8 @@ export function StandardModePage() {
                   type="button"
                   aria-label="Open add task dialog"
                 >
-                  锛?                </button>
+                  +
+                </button>
                 <input
                   className="task-input-field"
                   onChange={(event) => setNewTaskTitle(event.currentTarget.value)}
@@ -420,6 +436,7 @@ export function StandardModePage() {
 
           {activeSection === "global" ? <GlobalPanel /> : null}
           {activeSection === "task" ? <TaskPanel /> : null}
+          {activeSection === "tag" ? <TagPanel /> : null}
           {activeSection === "stats" ? <ComingSoonSection section="stats" /> : null}
 
           <button className="fab" onClick={openAddTaskModal} type="button" aria-label="Add task">
