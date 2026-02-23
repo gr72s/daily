@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   getWidgetHoverOpacity,
   getWidgetOpacity,
@@ -59,14 +59,11 @@ function ComingSoonSection({ section }: { section: StandardSection }) {
 }
 
 export function StandardModePage() {
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [modalTaskTitle, setModalTaskTitle] = useState("");
   const [windowError, setWindowError] = useState<string | null>(null);
   const [widgetOpacity, setWidgetOpacity] = useState(() => getWidgetOpacity());
   const [widgetHoverOpacity, setWidgetHoverOpacity] = useState(() => getWidgetHoverOpacity());
   const [widgetScale, setWidgetScale] = useState(() => getWidgetScale());
   const [activeSection, setActiveSection] = useState<StandardSection>("home");
-  const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
 
   const filter = useTodoStore((state) => state.filter);
   const sortMode = useTodoStore((state) => state.sortMode);
@@ -77,7 +74,6 @@ export function StandardModePage() {
   const applySyncedTasksState = useTodoStore((state) => state.applySyncedTasksState);
   const applySyncedWidgetTaskView = useTodoStore((state) => state.applySyncedWidgetTaskView);
   const applySyncedWidgetAlignment = useTodoStore((state) => state.applySyncedWidgetAlignment);
-  const addTask = useTodoStore((state) => state.addTask);
   const widgetLocked = useTodoStore((state) => state.widgetLocked);
   const widgetVisible = useTodoStore((state) => state.widgetVisible);
   const widgetShowAllTasks = useTodoStore((state) => state.widgetShowAllTasks);
@@ -88,34 +84,11 @@ export function StandardModePage() {
   const setWidgetAlignMode = useTodoStore((state) => state.setWidgetAlignMode);
 
   const tasks = useTodoStore((state) => state.tasks);
-  const visibleTasks = useMemo(() => getVisibleTasks(tasks, filter, sortMode), [tasks, filter, sortMode]);
-
-  const onSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    addTask({ title: newTaskTitle });
-    setNewTaskTitle("");
-  };
-
-  const openAddTaskModal = () => {
-    setIsAddTaskModalOpen(true);
-    setModalTaskTitle("");
-  };
-
-  const closeAddTaskModal = () => {
-    setIsAddTaskModalOpen(false);
-  };
-
-  const onSubmitModalTask = (event: FormEvent) => {
-    event.preventDefault();
-    const normalizedTitle = modalTaskTitle.trim();
-    if (!normalizedTitle) {
-      return;
-    }
-
-    addTask({ title: normalizedTitle });
-    setModalTaskTitle("");
-    closeAddTaskModal();
-  };
+  const visibleTasks = useMemo(() => {
+    const todayDateKey = new Date().toISOString().slice(0, 10);
+    const todayTasks = tasks.filter((task) => task.executionDate === todayDateKey);
+    return getVisibleTasks(todayTasks, filter, sortMode);
+  }, [tasks, filter, sortMode]);
 
   const onToggleWidgetVisibility = async () => {
     const nextVisible = !widgetVisible;
@@ -408,30 +381,13 @@ export function StandardModePage() {
                 </button>
               </section>
 
-              <form className="task-input" onSubmit={onSubmit}>
-                <button
-                  className="task-input-plus"
-                  onClick={openAddTaskModal}
-                  type="button"
-                  aria-label="Open add task dialog"
-                >
-                  +
-                </button>
-                <input
-                  className="task-input-field"
-                  onChange={(event) => setNewTaskTitle(event.currentTarget.value)}
-                  placeholder="Add a new task..."
-                  value={newTaskTitle}
-                />
-              </form>
-
               {windowError ? <p className="standard-error">{windowError}</p> : null}
 
               <section className="task-list" aria-label="Task list">
                 {visibleTasks.length > 0 ? (
                   visibleTasks.map((task) => <TaskRow key={task.id} task={task} onToggle={toggleTask} />)
                 ) : (
-                  <div className="task-empty">No tasks yet. Add one above.</div>
+                  <div className="task-empty">No tasks scheduled for today.</div>
                 )}
               </section>
             </>
@@ -443,40 +399,6 @@ export function StandardModePage() {
           {activeSection === "tag" ? <TagPanel /> : null}
           {activeSection === "stats" ? <ComingSoonSection section="stats" /> : null}
 
-          <button className="fab" onClick={openAddTaskModal} type="button" aria-label="Add task">
-            +
-          </button>
-
-          {isAddTaskModalOpen ? (
-            <div className="task-modal-backdrop" onClick={closeAddTaskModal} role="presentation">
-              <div
-                className="task-modal"
-                onClick={(event) => event.stopPropagation()}
-                role="dialog"
-                aria-label="Add task"
-                aria-modal="true"
-              >
-                <h2 className="task-modal-title">Add a new task</h2>
-                <form className="task-modal-form" onSubmit={onSubmitModalTask}>
-                  <input
-                    autoFocus
-                    className="task-modal-input"
-                    onChange={(event) => setModalTaskTitle(event.currentTarget.value)}
-                    placeholder="Task title..."
-                    value={modalTaskTitle}
-                  />
-                  <div className="task-modal-actions">
-                    <button className="task-modal-confirm" type="submit">
-                      Add
-                    </button>
-                    <button className="task-modal-cancel" onClick={closeAddTaskModal} type="button">
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          ) : null}
         </main>
 
         <BottomNav active={activeSection} onChange={setActiveSection} />
