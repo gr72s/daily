@@ -1,6 +1,7 @@
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTodoStore } from "../../shared/state/useTodoStore";
 import type { GlobalStatus, TodoGlobal } from "../../shared/types/todo";
+import { DateRangeFilter, EntityLayout, ListControls, ListPagination } from "./shared/EntityLayoutBlocks";
 
 type SortDirection = "asc" | "desc";
 type GlobalSortField = "status" | "startDate" | "title";
@@ -290,7 +291,7 @@ export function GlobalPanel() {
     isSortActive(field) ? (globalSort.direction === "asc" ? "ASC" : "DESC") : "";
 
   return (
-    <section className="global-layout" aria-label="Global management">
+    <EntityLayout ariaLabel="Global management">
       <form className="global-create-toolbar" onSubmit={onSubmitGlobal}>
         <div className="global-create-primary-row">
           <input
@@ -389,40 +390,22 @@ export function GlobalPanel() {
       </form>
 
       <section className="global-list-panel" aria-label="Existing globals">
-        <div className="list-controls">
-          <div className="list-controls-main-row">
-            <div className="list-filter-group">
-              <label className="list-filter-field">
-                <span>From</span>
-                <input
-                  className={`list-filter-input${isGlobalDateRangeInvalid ? " is-invalid" : ""}`}
-                  type="date"
-                  value={globalDateFrom}
-                  onChange={(event) => setGlobalDateFrom(event.currentTarget.value)}
-                />
-              </label>
-              <label className="list-filter-field">
-                <span>To</span>
-                <input
-                  className={`list-filter-input${isGlobalDateRangeInvalid ? " is-invalid" : ""}`}
-                  type="date"
-                  value={globalDateTo}
-                  onChange={(event) => setGlobalDateTo(event.currentTarget.value)}
-                />
-              </label>
-              <button
-                className="list-clear-button"
-                onClick={() => {
-                  setGlobalDateFrom("");
-                  setGlobalDateTo("");
-                }}
-                type="button"
-              >
-                Clear
-              </button>
-            </div>
-
-            <div className="list-sort-group">
+        <ListControls
+          filter={
+            <DateRangeFilter
+              from={globalDateFrom}
+              to={globalDateTo}
+              invalid={isGlobalDateRangeInvalid}
+              onFromChange={setGlobalDateFrom}
+              onToChange={setGlobalDateTo}
+              onClear={() => {
+                setGlobalDateFrom("");
+                setGlobalDateTo("");
+              }}
+            />
+          }
+          sort={
+            <>
               <button
                 className={`sort-button${isSortActive("status") ? " is-active" : ""}`}
                 onClick={() => onToggleGlobalSort("status")}
@@ -450,9 +433,9 @@ export function GlobalPanel() {
               <button className="list-clear-button" onClick={onResetGlobalSort} type="button">
                 Clear
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <div className="global-list">
           {pagedGlobals.length > 0 ? (
@@ -469,25 +452,12 @@ export function GlobalPanel() {
           )}
         </div>
 
-        <div className="list-pagination">
-          <button
-            className="list-pagination-button"
-            onClick={() => setGlobalPage((current) => Math.max(1, current - 1))}
-            type="button"
-            disabled={globalCurrentPage <= 1}
-          >
-            Prev
-          </button>
-          <span className="list-pagination-status">{`Page ${globalCurrentPage} / ${globalTotalPages}`}</span>
-          <button
-            className="list-pagination-button"
-            onClick={() => setGlobalPage((current) => Math.min(globalTotalPages, current + 1))}
-            type="button"
-            disabled={globalCurrentPage >= globalTotalPages}
-          >
-            Next
-          </button>
-        </div>
+        <ListPagination
+          currentPage={globalCurrentPage}
+          totalPages={globalTotalPages}
+          onPrev={() => setGlobalPage((current) => Math.max(1, current - 1))}
+          onNext={() => setGlobalPage((current) => Math.min(globalTotalPages, current + 1))}
+        />
       </section>
 
       <section className="global-detail-panel" aria-label="Global detail">
@@ -541,6 +511,6 @@ export function GlobalPanel() {
           <div className="global-empty">No global selected. Create one to start.</div>
         )}
       </section>
-    </section>
+    </EntityLayout>
   );
 }

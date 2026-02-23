@@ -466,6 +466,7 @@ button {
   margin: 0;
 }
 
+.entity-layout,
 .global-layout {
   margin-top: 16px;
   display: grid;
@@ -1231,26 +1232,6 @@ button {
   font-size: 12px;
 }
 
-.spark-layout {
-  margin-top: 16px;
-  display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 14px;
-}
-
-.spark-list-panel,
-.spark-detail-panel {
-  background: #ffffff;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-}
-
-.spark-list-panel {
-  padding: 12px;
-  display: grid;
-  gap: 12px;
-}
-
 .spark-form {
   display: grid;
   gap: 8px;
@@ -1910,6 +1891,101 @@ button {
   background: #86efac;
 }
 
+.task-list-panel,
+.spark-list-panel {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.task-search-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.task-detail-panel-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.task-detail-panel-compact,
+.spark-detail-panel-compact {
+  overflow: auto;
+  min-height: 0;
+  padding: 14px;
+}
+
+.task-editor-form {
+  display: grid;
+  gap: 8px;
+}
+
+.task-logs-card {
+  margin-top: 0;
+  min-height: 0;
+  flex: 1;
+}
+
+.task-tags-field input {
+  height: 38px;
+}
+
+.spark-create-link-popover {
+  min-width: 220px;
+}
+
+.spark-create-multi-select,
+.spark-detail-multi-select {
+  width: 100%;
+  min-height: 110px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px;
+  background: #ffffff;
+}
+
+.spark-editor-form {
+  display: grid;
+  gap: 8px;
+}
+
+.spark-save-inline {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.spark-save-inline .global-create-button {
+  min-width: 124px;
+}
+
+.spark-description-field textarea {
+  min-height: 88px;
+}
+
+.spark-card-meta {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 11px;
+}
+
+.spark-list.global-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
 @media (max-width: 768px) {
   .standard-shell {
     display: block;
@@ -1925,6 +2001,7 @@ button {
     padding: 22px 16px 100px;
   }
 
+  .entity-layout,
   .global-layout {
     display: grid;
     grid-template-rows: auto auto auto;
@@ -1936,7 +2013,7 @@ button {
     display: block;
   }
 
-  .spark-layout {
+  .spark-panel-layout-legacy {
     display: block;
   }
 
