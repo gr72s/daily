@@ -469,7 +469,7 @@ button {
 .global-layout {
   margin-top: 16px;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1.25fr) minmax(0, 0.75fr);
   gap: 12px;
   min-height: 640px;
   height: min(74vh, 780px);
@@ -643,6 +643,11 @@ button {
   background: #ffffff;
 }
 
+.list-filter-input.is-invalid {
+  border-color: #dc2626;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.22);
+}
+
 .list-clear-button {
   height: 34px;
   border-radius: 8px;
@@ -708,6 +713,33 @@ button {
   color: #6b7280;
   font-size: 12px;
   font-weight: 600;
+}
+
+.global-list-panel .list-controls {
+  display: block;
+}
+
+.list-controls-main-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.list-filter-group,
+.list-sort-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.list-filter-group {
+  flex-wrap: wrap;
+}
+
+.list-sort-group {
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .global-create-form,
@@ -849,6 +881,11 @@ button {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.global-editor-compact {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .global-field {
   display: flex;
   flex-direction: column;
@@ -858,8 +895,32 @@ button {
   font-weight: 600;
 }
 
+.global-field-wide {
+  grid-column: span 2;
+}
+
 .global-field-full {
   grid-column: span 3;
+}
+
+.global-status-save-row {
+  grid-column: span 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.global-status-save-row .global-field {
+  min-width: 0;
+  flex: 1;
+}
+
+.global-status-save-row .global-create-button {
+  min-width: 124px;
+}
+
+.global-description-field textarea {
+  min-height: 88px;
 }
 
 .global-editor-actions {
@@ -1893,6 +1954,17 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .list-controls-main-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .list-sort-group {
+    justify-content: flex-start;
+  }
+
+  .global-field-wide,
+  .global-status-save-row,
   .global-field-full,
   .global-editor-actions {
     grid-column: span 1;

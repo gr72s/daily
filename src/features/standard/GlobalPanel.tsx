@@ -140,6 +140,7 @@ export function GlobalPanel() {
     [globals, selectedGlobalId],
   );
   const hasCreateDescription = newGlobalDescription.trim().length > 0;
+  const isGlobalDateRangeInvalid = Boolean(globalDateFrom && globalDateTo && globalDateFrom > globalDateTo);
 
   useEffect(() => {
     setGlobalPage(1);
@@ -222,6 +223,13 @@ export function GlobalPanel() {
         field,
         direction: globalSortDefaultDirection[field],
       };
+    });
+  };
+
+  const onResetGlobalSort = () => {
+    setGlobalSort({
+      field: "status",
+      direction: "asc",
     });
   };
 
@@ -382,62 +390,67 @@ export function GlobalPanel() {
 
       <section className="global-list-panel" aria-label="Existing globals">
         <div className="list-controls">
-          <div className="list-controls-row">
-            <label className="list-filter-field">
-              <span>From</span>
-              <input
-                className="list-filter-input"
-                type="date"
-                value={globalDateFrom}
-                onChange={(event) => setGlobalDateFrom(event.currentTarget.value)}
-              />
-            </label>
-            <label className="list-filter-field">
-              <span>To</span>
-              <input
-                className="list-filter-input"
-                type="date"
-                value={globalDateTo}
-                onChange={(event) => setGlobalDateTo(event.currentTarget.value)}
-              />
-            </label>
-            <button
-              className="list-clear-button"
-              onClick={() => {
-                setGlobalDateFrom("");
-                setGlobalDateTo("");
-              }}
-              type="button"
-            >
-              Clear
-            </button>
-          </div>
+          <div className="list-controls-main-row">
+            <div className="list-filter-group">
+              <label className="list-filter-field">
+                <span>From</span>
+                <input
+                  className={`list-filter-input${isGlobalDateRangeInvalid ? " is-invalid" : ""}`}
+                  type="date"
+                  value={globalDateFrom}
+                  onChange={(event) => setGlobalDateFrom(event.currentTarget.value)}
+                />
+              </label>
+              <label className="list-filter-field">
+                <span>To</span>
+                <input
+                  className={`list-filter-input${isGlobalDateRangeInvalid ? " is-invalid" : ""}`}
+                  type="date"
+                  value={globalDateTo}
+                  onChange={(event) => setGlobalDateTo(event.currentTarget.value)}
+                />
+              </label>
+              <button
+                className="list-clear-button"
+                onClick={() => {
+                  setGlobalDateFrom("");
+                  setGlobalDateTo("");
+                }}
+                type="button"
+              >
+                Clear
+              </button>
+            </div>
 
-          <div className="list-controls-row">
-            <button
-              className={`sort-button${isSortActive("status") ? " is-active" : ""}`}
-              onClick={() => onToggleGlobalSort("status")}
-              type="button"
-            >
-              <span>Sort: Status</span>
-              <em className="sort-direction-indicator">{sortDirectionText("status")}</em>
-            </button>
-            <button
-              className={`sort-button${isSortActive("startDate") ? " is-active" : ""}`}
-              onClick={() => onToggleGlobalSort("startDate")}
-              type="button"
-            >
-              <span>Sort: Start Date</span>
-              <em className="sort-direction-indicator">{sortDirectionText("startDate")}</em>
-            </button>
-            <button
-              className={`sort-button${isSortActive("title") ? " is-active" : ""}`}
-              onClick={() => onToggleGlobalSort("title")}
-              type="button"
-            >
-              <span>Sort: Title</span>
-              <em className="sort-direction-indicator">{sortDirectionText("title")}</em>
-            </button>
+            <div className="list-sort-group">
+              <button
+                className={`sort-button${isSortActive("status") ? " is-active" : ""}`}
+                onClick={() => onToggleGlobalSort("status")}
+                type="button"
+              >
+                <span>Sort: Status</span>
+                <em className="sort-direction-indicator">{sortDirectionText("status")}</em>
+              </button>
+              <button
+                className={`sort-button${isSortActive("startDate") ? " is-active" : ""}`}
+                onClick={() => onToggleGlobalSort("startDate")}
+                type="button"
+              >
+                <span>Sort: Start Date</span>
+                <em className="sort-direction-indicator">{sortDirectionText("startDate")}</em>
+              </button>
+              <button
+                className={`sort-button${isSortActive("title") ? " is-active" : ""}`}
+                onClick={() => onToggleGlobalSort("title")}
+                type="button"
+              >
+                <span>Sort: Title</span>
+                <em className="sort-direction-indicator">{sortDirectionText("title")}</em>
+              </button>
+              <button className="list-clear-button" onClick={onResetGlobalSort} type="button">
+                Clear
+              </button>
+            </div>
           </div>
         </div>
 
@@ -479,8 +492,8 @@ export function GlobalPanel() {
 
       <section className="global-detail-panel" aria-label="Global detail">
         {selectedGlobal ? (
-          <form className="global-editor global-editor-single" onSubmit={onSubmitEditor}>
-            <label className="global-field">
+          <form className="global-editor global-editor-compact" onSubmit={onSubmitEditor}>
+            <label className="global-field global-field-wide">
               <span>Title</span>
               <input
                 value={editTitle}
@@ -496,31 +509,33 @@ export function GlobalPanel() {
                 onChange={(event) => setEditStartDate(event.currentTarget.value)}
               />
             </label>
-            <label className="global-field">
-              <span>Status</span>
-              <select
-                value={editStatus}
-                onChange={(event) => setEditStatus(event.currentTarget.value as GlobalStatus)}
-              >
-                <option value="active">active</option>
-                <option value="completed">completed</option>
-                <option value="terminated">terminated</option>
-              </select>
-            </label>
-            <label className="global-field global-field-full">
+
+            <div className="global-status-save-row">
+              <label className="global-field">
+                <span>Status</span>
+                <select
+                  value={editStatus}
+                  onChange={(event) => setEditStatus(event.currentTarget.value as GlobalStatus)}
+                >
+                  <option value="active">active</option>
+                  <option value="completed">completed</option>
+                  <option value="terminated">terminated</option>
+                </select>
+              </label>
+              <button className="global-create-button" type="submit">
+                Save Global
+              </button>
+            </div>
+
+            <label className="global-field global-field-full global-description-field">
               <span>Description</span>
               <textarea
-                rows={5}
+                rows={3}
                 value={editDescription}
                 onChange={(event) => setEditDescription(event.currentTarget.value)}
                 placeholder="Description (optional)"
               />
             </label>
-            <div className="global-editor-actions">
-              <button className="global-create-button" type="submit">
-                Save Global
-              </button>
-            </div>
           </form>
         ) : (
           <div className="global-empty">No global selected. Create one to start.</div>
