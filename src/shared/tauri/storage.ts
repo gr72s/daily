@@ -11,6 +11,26 @@ function isTauriRuntime() {
   return typeof window !== "undefined" && typeof window.__TAURI_INTERNALS__ !== "undefined";
 }
 
+function normalizeUnknownErrorMessage(raw: unknown) {
+  if (raw instanceof Error && raw.message) {
+    return raw.message;
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    return raw;
+  }
+  return "unknown error";
+}
+
+export function normalizePersistWriteError(raw: unknown, target: "data" | "config") {
+  if (raw instanceof Error && raw.message.startsWith("数据写入失败（")) {
+    return raw;
+  }
+
+  const targetFile = target === "data" ? "data.json" : "config.json";
+  const detail = normalizeUnknownErrorMessage(raw);
+  return new Error(`数据写入失败（${targetFile}）: ${detail}`);
+}
+
 export async function loadPersistedAppData() {
   if (!isTauriRuntime()) {
     return null;
@@ -25,7 +45,11 @@ export async function savePersistedAppData(data: PersistedAppData) {
     return;
   }
 
-  await invoke("save_app_data", { data });
+  try {
+    await invoke("save_app_data", { data });
+  } catch (error) {
+    throw normalizePersistWriteError(error, "data");
+  }
 }
 
 export async function loadPersistedAppConfig() {
@@ -42,7 +66,11 @@ export async function savePersistedAppConfig(config: PersistedAppConfig) {
     return;
   }
 
-  await invoke("save_app_config", { config });
+  try {
+    await invoke("save_app_config", { config });
+  } catch (error) {
+    throw normalizePersistWriteError(error, "config");
+  }
 }
 
 export async function saveWidgetPositionToPersistedAppConfig(position: WidgetPosition) {

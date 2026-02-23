@@ -310,6 +310,28 @@ button {
   font-size: 13px;
 }
 
+.standard-error-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.standard-error-row .standard-error {
+  margin: 0;
+}
+
+.standard-error-clear {
+  height: 28px;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fee2e2;
+  color: #991b1b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .task-list {
   margin-top: 18px;
   display: flex;

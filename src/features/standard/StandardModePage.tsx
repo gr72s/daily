@@ -82,6 +82,8 @@ export function StandardModePage() {
   const setWidgetVisible = useTodoStore((state) => state.setWidgetVisible);
   const setWidgetShowAllTasks = useTodoStore((state) => state.setWidgetShowAllTasks);
   const setWidgetAlignMode = useTodoStore((state) => state.setWidgetAlignMode);
+  const persistWriteError = useTodoStore((state) => state.persistWriteError);
+  const setPersistWriteError = useTodoStore((state) => state.setPersistWriteError);
 
   const tasks = useTodoStore((state) => state.tasks);
   const visibleTasks = useMemo(() => {
@@ -368,6 +370,16 @@ export function StandardModePage() {
               </button></div>
           </header>
 
+          {windowError ? <p className="standard-error">{windowError}</p> : null}
+          {persistWriteError ? (
+            <div className="standard-error-row" role="alert">
+              <p className="standard-error">{persistWriteError}</p>
+              <button className="standard-error-clear" onClick={() => setPersistWriteError(null)} type="button">
+                Dismiss
+              </button>
+            </div>
+          ) : null}
+
           {activeSection === "home" ? (
             <>
               <section className="standard-filters" aria-label="Task controls">
@@ -380,8 +392,6 @@ export function StandardModePage() {
                   Sort: {sortMode === "status" ? "Status" : "Date"}
                 </button>
               </section>
-
-              {windowError ? <p className="standard-error">{windowError}</p> : null}
 
               <section className="task-list" aria-label="Task list">
                 {visibleTasks.length > 0 ? (

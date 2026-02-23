@@ -35,6 +35,7 @@ export function WidgetModePage() {
   const setWidgetLocked = useTodoStore((state) => state.setWidgetLocked);
   const setWidgetShowAllTasks = useTodoStore((state) => state.setWidgetShowAllTasks);
   const setWidgetAlignMode = useTodoStore((state) => state.setWidgetAlignMode);
+  const setPersistWriteError = useTodoStore((state) => state.setPersistWriteError);
   const toggleTask = useTodoStore((state) => state.toggleTask);
   const applySyncedTaskStatus = useTodoStore((state) => state.applySyncedTaskStatus);
   const applySyncedTasksState = useTodoStore((state) => state.applySyncedTasksState);
@@ -111,6 +112,7 @@ export function WidgetModePage() {
     let unlistenWidgetTaskView: (() => void) | undefined;
     let unlistenWidgetAlignment: (() => void) | undefined;
     let widgetPositionPersistTimer: ReturnType<typeof setTimeout> | undefined;
+    let lastPendingWidgetPosition: { x: number; y: number } | null = null;
 
     void onWidgetForceUnlock(() => {
       setWidgetLocked(false);
@@ -134,11 +136,19 @@ export function WidgetModePage() {
 
     void onWidgetMoved((position) => {
       setWidgetPosition(position);
+      lastPendingWidgetPosition = position;
       if (widgetPositionPersistTimer) {
         clearTimeout(widgetPositionPersistTimer);
       }
       widgetPositionPersistTimer = setTimeout(() => {
-        void saveWidgetPositionToPersistedAppConfig(position).catch(() => {});
+        const pendingPosition = lastPendingWidgetPosition;
+        if (!pendingPosition) {
+          return;
+        }
+        lastPendingWidgetPosition = null;
+        void saveWidgetPositionToPersistedAppConfig(pendingPosition).catch((error) => {
+          setPersistWriteError(error instanceof Error ? error.message : "数据写入失败（config.json）");
+        });
       }, 220);
     }).then((dispose) => {
       if (isDisposed) {
@@ -228,9 +238,17 @@ export function WidgetModePage() {
       }
       if (widgetPositionPersistTimer) {
         clearTimeout(widgetPositionPersistTimer);
+        widgetPositionPersistTimer = undefined;
+      }
+      if (lastPendingWidgetPosition) {
+        const pendingPosition = lastPendingWidgetPosition;
+        lastPendingWidgetPosition = null;
+        void saveWidgetPositionToPersistedAppConfig(pendingPosition).catch((error) => {
+          setPersistWriteError(error instanceof Error ? error.message : "数据写入失败（config.json）");
+        });
       }
     };
-  }, [applySyncedTaskStatus, applySyncedTasksState, applySyncedWidgetTaskView, applySyncedWidgetAlignment, setWidgetLocked]);
+  }, [applySyncedTaskStatus, applySyncedTasksState, applySyncedWidgetTaskView, applySyncedWidgetAlignment, setPersistWriteError, setWidgetLocked]);
 
   return (
     <div className="widget-page">

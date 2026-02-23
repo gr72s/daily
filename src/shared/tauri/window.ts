@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { emit, listen } from "@tauri-apps/api/event";
-import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
+import { LogicalPosition, LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
 import { getCurrentWebviewWindow, WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { currentMonitor, primaryMonitor } from "@tauri-apps/api/window";
 import { getWidgetLocked, getWidgetPosition, getWidgetScale, setWidgetPosition } from "../settings/widget";
@@ -272,11 +272,7 @@ export async function resetWidgetWindowPosition() {
   }
 
   setWidgetPosition(nextPosition);
-  try {
-    await saveWidgetPositionToPersistedAppConfig(nextPosition);
-  } catch {
-    // Keep reset behavior even if config persistence fails.
-  }
+  await saveWidgetPositionToPersistedAppConfig(nextPosition);
 
   const existing = await WebviewWindow.getByLabel("widget");
   if (!existing) {
@@ -426,7 +422,21 @@ export async function onWidgetMoved(handler: (position: { x: number; y: number }
   }
 
   return current.onMoved(({ payload }) => {
-    handler({ x: payload.x, y: payload.y });
+    void (async () => {
+      try {
+        const scaleFactor = await current.scaleFactor();
+        const logicalPosition = new PhysicalPosition(payload).toLogical(scaleFactor);
+        handler({
+          x: Math.round(logicalPosition.x),
+          y: Math.round(logicalPosition.y),
+        });
+      } catch {
+        handler({
+          x: Math.round(payload.x),
+          y: Math.round(payload.y),
+        });
+      }
+    })();
   });
 }
 

@@ -15,6 +15,7 @@ import {
 import {
   loadPersistedAppConfig,
   loadPersistedAppData,
+  normalizePersistWriteError,
   savePersistedAppConfig,
   savePersistedAppData,
 } from "../tauri/storage";
@@ -97,6 +98,7 @@ interface TodoState {
   widgetVisible: boolean;
   widgetShowAllTasks: boolean;
   widgetAlignMode: WidgetAlignMode;
+  persistWriteError: string | null;
   dataInitialized: boolean;
   toggleTask: (id: string) => void;
   applySyncedTaskStatus: (payload: TaskStatusSyncPayload) => void;
@@ -122,6 +124,7 @@ interface TodoState {
   toggleWidgetShowAllTasks: () => void;
   setWidgetAlignMode: (alignMode: WidgetAlignMode) => void;
   toggleWidgetAlignMode: () => void;
+  setPersistWriteError: (message: string | null) => void;
   initializeData: () => Promise<void>;
 }
 
@@ -241,7 +244,17 @@ function schedulePersist(state: TodoState) {
 
   const payload = toPersistedData(state);
   persistTimer = setTimeout(() => {
-    void savePersistedAppData(payload);
+    void savePersistedAppData(payload)
+      .then(() => {
+        if (useTodoStore.getState().persistWriteError) {
+          useTodoStore.setState({ persistWriteError: null });
+        }
+      })
+      .catch((error) => {
+        useTodoStore.setState({
+          persistWriteError: normalizePersistWriteError(error, "data").message,
+        });
+      });
   }, 200);
 }
 
@@ -332,6 +345,7 @@ export const useTodoStore = create<TodoState>((set, get) => ({
   widgetVisible: false,
   widgetShowAllTasks: false,
   widgetAlignMode: "right",
+  persistWriteError: null,
   dataInitialized: false,
   toggleTask: (id) => {
     let syncPayload: TaskStatusSyncPayload | null = null;
@@ -699,7 +713,15 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     }),
   setWidgetVisible: (widgetVisible) => {
     set({ widgetVisible });
-    void savePersistedAppConfig(buildPersistedConfig(widgetVisible));
+    void savePersistedAppConfig(buildPersistedConfig(widgetVisible))
+      .then(() => {
+        if (get().persistWriteError) {
+          set({ persistWriteError: null });
+        }
+      })
+      .catch((error) => {
+        set({ persistWriteError: normalizePersistWriteError(error, "config").message });
+      });
   },
   setWidgetShowAllTasks: (showAllTasks) => {
     applyMutation(get, () => {
@@ -727,6 +749,9 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     const nextAlignMode: WidgetAlignMode = get().widgetAlignMode === "right" ? "left" : "right";
     get().setWidgetAlignMode(nextAlignMode);
   },
+  setPersistWriteError: (message) => {
+    set({ persistWriteError: message });
+  },
   initializeData: async () => {
     if (get().dataInitialized) {
       return;
@@ -735,11 +760,16 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     try {
       const persistedConfig = normalizePersistedConfig(await loadPersistedAppConfig());
       const initialWidgetVisible = persistedConfig?.widgetVisible ?? false;
-      if (!getWidgetPosition() && persistedConfig?.widgetPosition) {
+      if (persistedConfig?.widgetPosition) {
         persistWidgetPosition(persistedConfig.widgetPosition);
       }
       if (!persistedConfig) {
-        await savePersistedAppConfig(buildPersistedConfig(initialWidgetVisible));
+        try {
+          await savePersistedAppConfig(buildPersistedConfig(initialWidgetVisible));
+        } catch (error) {
+          set({ persistWriteError: normalizePersistWriteError(error, "config").message });
+          throw error;
+        }
       }
 
       const persisted = normalizePersistedData(await loadPersistedAppData());
@@ -779,7 +809,12 @@ export const useTodoStore = create<TodoState>((set, get) => ({
         selectedGlobalId: null,
         dataInitialized: true,
       });
-      await savePersistedAppData(emptyData);
+      try {
+        await savePersistedAppData(emptyData);
+      } catch (error) {
+        set({ persistWriteError: normalizePersistWriteError(error, "data").message });
+        throw error;
+      }
     } catch {
       set({
         tasks: [],

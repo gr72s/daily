@@ -662,6 +662,10 @@ fn save_app_data(app: tauri::AppHandle, data: serde_json::Value) -> Result<(), S
             Ok(())
         }
         Err(error) => {
+            let final_error = format!(
+                "failed to write data.json at `{}`: {error}",
+                app_data_path.display()
+            );
             log_project_event(
                 &app,
                 "error",
@@ -669,10 +673,10 @@ fn save_app_data(app: tauri::AppHandle, data: serde_json::Value) -> Result<(), S
                 "Failed to save data.json.",
                 Some(serde_json::json!({
                     "path": app_data_path.display().to_string(),
-                    "error": error
+                    "error": final_error
                 })),
             );
-            Err(error)
+            Err(final_error)
         }
     }
 }
@@ -727,6 +731,10 @@ fn save_app_config(app: tauri::AppHandle, config: serde_json::Value) -> Result<(
             Ok(())
         }
         Err(error) => {
+            let final_error = format!(
+                "failed to write config.json at `{}`: {error}",
+                app_config_path.display()
+            );
             log_project_event(
                 &app,
                 "error",
@@ -734,10 +742,10 @@ fn save_app_config(app: tauri::AppHandle, config: serde_json::Value) -> Result<(
                 "Failed to save config.json.",
                 Some(serde_json::json!({
                     "path": app_config_path.display().to_string(),
-                    "error": error
+                    "error": final_error
                 })),
             );
-            Err(error)
+            Err(final_error)
         }
     }
 }
